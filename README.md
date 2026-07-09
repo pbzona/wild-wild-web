@@ -38,7 +38,7 @@ and visit `http://localhost:8545`. The only network dependency is three.js r128 
 | double-click to travel | double-tap travels |
 | click to inspect | tap inspects |
 
-`space` pause · `1–5` speed · `T` ranges overlay · `C` watch mode · `G` director · `L` labels · `H` hide the print shop · `F` fps · `Esc` release
+`WASD` pan · `space` pause · `1–5` speed · `T` ranges overlay · `C` watch mode · `G` director · `L` labels · `H` hide the print shop · `F` fps · `Esc` release
 
 ## How it's built
 

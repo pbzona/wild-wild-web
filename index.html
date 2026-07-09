@@ -6364,6 +6364,7 @@ const CAM = {
   yaw: 0.9, yawT: 0.9, pitchOff: 0, pitchOffT: 0,
   t: 0.95, tT: 0.62, radius: 3000, intro: true, lastInput: 0, follow: null
 };
+const KEYS = new Set();   // held wasd keys
 function tFromAlt(alt){ return clamp((Math.log(clamp(alt,9,4300))-Math.log(9))/(Math.log(4300)-Math.log(9)), 0, 1); }
 function flyTo(x, z, alt){
   CAM.focusT.set(clamp(x,-2850,2850), 0, clamp(z,-2850,2850));
@@ -6372,6 +6373,24 @@ function flyTo(x, z, alt){
   CAM.intro = false;
 }
 function updateCamera(dt, nowMs){
+  // wasd pans relative to the view
+  if(KEYS.size){
+    const fx = -Math.sin(CAM.yaw), fz = -Math.cos(CAM.yaw);
+    const rx = Math.cos(CAM.yaw), rz = -Math.sin(CAM.yaw);
+    let mx = 0, mz = 0;
+    if(KEYS.has('w')){ mx += fx; mz += fz; }
+    if(KEYS.has('s')){ mx -= fx; mz -= fz; }
+    if(KEYS.has('a')){ mx -= rx; mz -= rz; }
+    if(KEYS.has('d')){ mx += rx; mz += rz; }
+    if(mx || mz){
+      const spd = CAM.radius * 0.9 * dt;
+      CAM.follow = null;
+      CAM.intro = false;
+      CAM.lastInput = nowMs;
+      CAM.focusT.x = clamp(CAM.focusT.x + mx*spd, -2850, 2850);
+      CAM.focusT.z = clamp(CAM.focusT.z + mz*spd, -2850, 2850);
+    }
+  }
   if(CAM.follow){
     const list = W.agents || [];
     const list2 = W.posses || [];
@@ -6442,12 +6461,13 @@ function initInput(){
   const ptrs = new Map();
   const lastTap = {t: 0, x: 0, y: 0};
   function panBy(dx, dy){
+    // grab-the-ground on both axes: the world follows the cursor
     CAM.follow = null;
     const sc = CAM.radius*0.0016;
     const fx = -Math.sin(CAM.yaw), fz = -Math.cos(CAM.yaw);
     const rx = Math.cos(CAM.yaw), rz = -Math.sin(CAM.yaw);
-    CAM.focusT.x = clamp(CAM.focusT.x + (-rx*dx - fx*dy)*sc, -2850, 2850);
-    CAM.focusT.z = clamp(CAM.focusT.z + (-rz*dx - fz*dy)*sc, -2850, 2850);
+    CAM.focusT.x = clamp(CAM.focusT.x + (-rx*dx + fx*dy)*sc, -2850, 2850);
+    CAM.focusT.z = clamp(CAM.focusT.z + (-rz*dx + fz*dy)*sc, -2850, 2850);
   }
   el.addEventListener('pointerdown', e => {
     ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
@@ -6534,9 +6554,12 @@ function initInput(){
     }
   });
   el.addEventListener('contextmenu', e => e.preventDefault());
+  window.addEventListener('keyup', e => KEYS.delete(e.key.toLowerCase()));
+  window.addEventListener('blur', ()=> KEYS.clear());
   window.addEventListener('keydown', e => {
     if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='TEXTAREA')) return;
     const k = e.key.toLowerCase();
+    if(k==='w'||k==='a'||k==='s'||k==='d'){ KEYS.add(k); return; }
     if(k===' '){ togglePause(); e.preventDefault(); }
     else if(k>='1' && k<='5'){ setSpeed(parseInt(k)); }
     else if(k==='h'){ toggleUI(); }
@@ -7069,6 +7092,7 @@ window.GAZETTE = {
   },
   yaw(v){ CAM.yawT = v; CAM.yaw = v; },
   pitch(v){ CAM.pitchOffT = v; CAM.pitchOff = v; },
+  cam(){ return { x: +CAM.focusT.x.toFixed(1), z: +CAM.focusT.z.toFixed(1), yaw: +CAM.yaw.toFixed(3), radius: Math.round(CAM.radius) }; },
   tod(f){ renderTod = ((f%1)+1)%1; },
   day(d){ W.clock.day = d; },
   speed(i){ setSpeed(clamp(i,0,SPEEDS.length-1)); },
