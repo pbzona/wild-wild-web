@@ -362,9 +362,7 @@ const RES = 384;                // terrain render mesh resolution
 const CHUNKS = 6;               // flora chunk grid
 const SPEEDS = [0, 0.1, 1, 5, 30, 120];   // sim-days per real second
 const YEAR0 = 1866;             // sim day 0 = March 1st, 1866
-const MONTHS = ['March','April','May','June','July','August','September','October','November','December','January','February'];
-const SEASONS = ['Spring','Summer','Autumn','Winter'];
-const GLYPHS = ['❀','☀','🍂','❅'];
+// MONTHS / SEASONS / GLYPHS now live in CONTENT.calendar (aliased below)
 
 // ---------- 2. rng ----------
 function xmur3(str){
@@ -428,83 +426,249 @@ function makePerlin(rng){
   return {n2, fbm};
 }
 
-// ---------- 5. names ----------
+// ---------- 5. CONTENT / DATA BANKS ----------
+// ---------------------------------------------------------------------------
+//  Everything below is editable "content": word banks, name banks, palettes,
+//  lookup tables, and the plain-string variant pools the Gazette draws from.
+//  Add or change entries here to grow the world's variety. The simulation's
+//  grammar/logic lives elsewhere and only READS from CONTENT — nothing here
+//  changes how the sim behaves, only the raw material it speaks with.
+//  (Interpolated headlines stay as functions near their systems; the pools
+//   they choose between live here under `gazette`.)
+// ---------------------------------------------------------------------------
+const CONTENT = {
+  // calendar (360-day year, day 0 = March 1 1866)
+  calendar: {
+    months: ['March','April','May','June','July','August','September','October','November','December','January','February'],
+    seasons: ['Spring','Summer','Autumn','Winter'],
+    glyphs: ['❀','☀','🍂','❅']
+  },
+
+  // place-name banks — combined into settlement / river / peak names
+  places: {
+    pre: ['Dry','Dead','Silver','Gold','Coyote','Rattlesnake','Buzzard','Alkali','Bitter','Lone','Red','Broken',
+      'Whiskey','Eagle','Antelope','Copper','Sundown','Wagon','Twin','Adobe','Cactus','Mustang','Bone','Salt','Cinder',
+      'Dusty','Hollow','Iron','Roan','Sulphur','Bent','Crow','Grey','Wolf','Powder',
+      'Cottonwood','Sage','Juniper','Chisel','Timber','Spur','Stampede','Poverty','Gospel','Hangman','Piney','Crooked',
+      'Little','Big','Rusty','Ashen','Yucca','Mesquite','Chaparral','Rincon','Buffalo','Rawhide','Lariat','Boot',
+      'Deuce','Nugget','Placer','Sluice','Tinder','Ember','Cougar','Badger','Magpie','Raven','Thistle','Cedar','Ponderosa','Chalk'],
+    suf: ['Gulch','Creek','Springs','Flats','Mesa','Bend','Crossing','Wells','Ridge','Fork','Hollow','Bluff','Gap','Butte','Draw','Sink','Camp',
+      'Basin','Hills','Pass','Canyon','Coulee','Wash','Landing','Meadow','Grove','Point','Ford','Cliffs','Rock','Prairie','Bar','Notch','Rise'],
+    sufGrand: ['City','Springs','Junction','Crossing','Wells','Center','Forks','Landing','Falls'],  // the county seat
+    spanishA: ['Agua','Mesa','Loma','Cerro','Rio','Piedra','Casa','Arroyo','Ojo','Puerto','Valle','Pozo','Camino','Tierra','Punta'], // Spanish prefix
+    spanishB: [' Seca',' Verde',' Alta',' Roja',' Dulce',' Amarga',' Perdida',' Blanca',' Negra',' Bonita',' Grande',' Escondida',' Colorada',' Vieja',' del Norte'], // Spanish suffix
+    spanishSaints: ['San Elmo','San Rafael','Santa Rosa','San Marcos','Santa Fe de Oro','San Aldo','Santa Ynez',
+      'San Lázaro','Santa Clara','San Cristóbal','Santa María','San Vicente','San Isidro','Santo Tomás','Santa Inés'],
+    rivers: ['Big','Muddy','Green','Bitter','Snake','Wind','Smoke','Bone','Salt','Roan','Powder','Cottonwood',
+      'Lost','Rushing','Willow','Cedar','Alder','Crooked','Milk','Sweetwater','Purgatory','Cache','Yellow','Shallow'],
+    peakPre: ['Old','Black','Grey','Signal','Lookout','Thunder','Castle','Wildhorse',
+      'Storm','Sentinel','Eagle','Cathedral','Granite','Windy','Battle','Sunrise'],
+    peakSuf: [' Baldy',' Peak',' Mountain',' Butte',' Horn',' Knob',' Ridge',' Crag',' Dome',' Spire',' Tooth',' Crown'],
+    counties: ['Alkali','Antelope','Buzzard','Caldera','Cottonwood','Coyote','Jubilee','Liberty',
+      'Mesa','Providence','Roan','Sage','Silverado','Sundown','Vermilion','Wagonwheel',
+      'Bonanza','Concord','Dorado','Emigrant','Fremont','Garnet','Hardscrabble','Keystone',
+      'Lincoln','Maverick','Ophir','Pinal','Quartz','Sonora','Tribulation','Yucca'],
+    strikeSuffix: [' Camp',' Gulch',' Diggings',' Bar',' Bonanza',' Placer']  // appended when a strike renames a town
+  },
+
+  // period given-name banks + surnames + character traits
+  people: {
+    male: ['Ezra','Silas','Jedediah','Amos','Cole','Wyatt','Eli','Levi','Caleb','Gideon','Harlan','Emmett','Roy','Frank',
+      'Jesse','Walt','Clay','Boone','August','Everett','Hiram','Lucius','Mort','Ike','Virgil','Morgan','Zeke','Cassius','Abel','Rufus',
+      'Josiah','Ambrose','Barnabas','Elias','Enoch','Obadiah','Thaddeus','Cornelius','Phineas','Nathaniel','Solomon','Isaiah',
+      'Jeremiah','Isaac','Reuben','Titus','Cyrus','Otis','Newton','Judah','Ephraim','Alonzo','Lemuel','Horace','Marcus','Rollin',
+      'Wilbur','Orville','Elijah','Micah','Alvin','Grover','Homer'],
+    female: ['Cora','Adelaide','Mattie','Pearl','Etta','Clara','Josie','Belle','Hattie','Lucinda','Abigail','May','Rosa',
+      'Dora','Nell','Sadie','Vera','Augusta','Minnie','Faye','Ada','Ruth','Tillie','Constance','Ida','Georgia','Alma','Lavinia',
+      'Amelia','Cordelia','Delphine','Eugenia','Florence','Genevieve','Harriet','Ophelia','Prudence','Rowena','Susannah','Temperance',
+      'Winifred','Beatrice','Delia','Eleanor','Flora','Hazel','Josephine','Lottie','Maude','Opal','Verity','Winona','Nettie',
+      'Katharine','Leona','Maribel','Rhoda','Effie','Sabina'],
+    surnames: ['Cartwright','Holloway','McAllister','Boone','Dunbar','Whitfield','Sloane','Barlow','Kane','Hardin',
+      'Calloway','Ashford','Beaumont','Ruiz','Vasquez','Ortega','Delgado','Thorne','Pickett','Granger','Mercer','Colton',
+      'Bishop','Tate','Vance','Lockhart','Shepherd','Quinn','Crane','Marlowe','Hobbs','Stroud',
+      'Ashby','Bannister','Callahan','Danforth','Ellison','Fairchild','Gallagher','Hawkins','Ingram','Jessup','Kingsley','Larkin',
+      'Merriweather','Nolan','Osgood','Pruitt','Rutledge','Sizemore','Thatcher','Underwood','Winslow','Yancey','Abernathy','Blackwood',
+      'Cargill','Dorsey','Eastman','Fletcher','Goddard','Halloran','Ledbetter','Montoya','Salazar','Cordova'],
+    traits: ['bold','craven','just','cruel','shrewd','dull','pious','cynical','fertile','sickly','sober','drunkard',
+      'honest','crooked','hot-headed','patient','generous','vengeful','ambitious','loyal','superstitious','taciturn']
+  },
+
+  // cattle-brand grammar: a core glyph + a modifier -> a spoken name ("Lazy J", "Flying W")
+  // NOTE: `shapes` and `modifiers` each require matching render cases in drawBrandGlyph/makeBrand;
+  //       letters & digits render as text, so letterPool/digitPool are safe to extend freely.
+  brands: {
+    letterPool: 'ABCDEFGHJKLMNPRSTVWXY',
+    digitPool: '2346789',
+    shapes: ['diamond','star','horseshoe','arrow','cross','heart','pitchfork','spur'],
+    modifiers: ['none','bar','rocker','lazy','circle','flying','double'],
+    letterSuffix: ['Cross','Slash','Quarter','Half','Rail','Anchor']
+  },
+
+  // outfit colors, kinds, and the gang / railroad naming banks
+  outfits: {
+    tints: [[0x8b3a2e,0xd9b48a],[0x3f5a5e,0xa8c2b8],[0x6b5a86,0xcabede],[0x9c6a2e,0xe3cb9a],[0x54633c,0xbcc9a0],[0x7d3a55,0xd8aabe],
+      [0x3a4a6b,0xaeb8d6],[0x7a5230,0xdcc39a]],
+    kinds: ['cattle','cattle','merchant'],
+    gangAdjective: ['Cimarron','Sundown','Dry River','Vermilion','Coyote','Silverado',
+      'Rimrock','Hondo','Purgatory','Diablo','Chisos','Guadalupe','Panhandle','Malpais'],
+    gangCollective: ['Gang','Boys','Bunch','Riders','Regulators','Marauders'],
+    railAdjective: ['Western','Pacific','Overland','Great Plains','Southern','Northern','Midland','Frontier']
+  },
+
+  // nicknames earned in the story
+  epithets: {
+    gunfight: ['Deadeye','Iron','Lucky','Two-Gun','the Wolf','Longshot','Quickdraw','the Cat','Steel','the Fox','Cold-Deck','Buckshot'],
+    rustlerBoss: ['Black','the Kid','Three-Finger','Dutch','the Preacher','Snake-Eye','Ace','the Weasel','Red','One-Ear','the Kansan','Rawhide'],
+    gangLeader: ['Black','Midnight','the Colonel','Cimarron','Handsome','the Deacon','the Ghost','Ironhand','the Parson','Silvertongue','the Baron','Gentleman']
+  },
+
+  // officials: the appointment slots + display / appointment titles
+  roles: {
+    slots: [['sheriff',-1],['marshal',-1],['judge',-1],['preacher',-2],['doctor',-2],['editor',-2]],
+    titles: {governor:'Territorial Governor', sheriff:'County Sheriff', marshal:'U.S. Marshal', judge:'District Judge',
+      preacher:'Preacher', doctor:'Physician', editor:'Editor of the Gazette', head:'head of the outfit'},
+    appointTitles: {sheriff:'County Sheriff', marshal:'U.S. Marshal', judge:'District Judge', preacher:'preacher', doctor:'physician', editor:'editor'}
+  },
+
+  // the seven goods
+  goods: {
+    order: ['grain','cattle','timber','ore','tools','whiskey','goods'],
+    name: {grain:'grain', cattle:'cattle', timber:'timber', ore:'ore', tools:'tools', whiskey:'whiskey', goods:'dry goods'},
+    base: {grain:1, cattle:3, timber:1.2, ore:2.5, tools:4, whiskey:3.5, goods:4.5},
+    unit: {grain:'sacks', cattle:'head', timber:'loads', ore:'tons', tools:'crates', whiskey:'barrels', goods:'bales'}
+  },
+
+  // acts of providence (control panel + director)
+  acts: {
+    defs: [
+      ['cholera', 'Unleash cholera ⌖', 4], ['fire', 'Start a fire ⌖', 4], ['flood', 'Flash flood', 4],
+      ['drought', 'Declare a drought', 4], ['twister', 'Send a twister ⌖', 4], ['gold', 'Strike gold ⌖', 4],
+      ['gang', 'Rouse the gang', 4], ['rustlers', 'Raise a rustler camp ⌖', 4],
+      ['assassinate', 'Shoot the governor', 3], ['contest', 'Contest the election', 3],
+      ['marriage', 'Broker a marriage', 3], ['bless', 'Bless the harvest', 3],
+      ['comet', 'Send a comet', 4], ['found', 'Charter a town ⌖', 3], ['grant', 'Grant $5,000', 3],
+      ['raze', 'Raze a building ⌖', 4], ['rail', 'Charter the railroad', 5]
+    ],
+    aim: new Set(['cholera','fire','twister','gold','rustlers','found','raze'])
+  },
+
+  // master world palette (terrain, buildings, flora, water)
+  palette: {
+    prairie:     [0x99934f, 0xa49c58],
+    prairieDry:  [0xb3a25e, 0xbca763],
+    farm:        [0x7f9b4e, 0x8ba556],
+    riparian:    [0x6f9048, 0x7c9c52],
+    pineFloor:   [0x5a7244, 0x647c4b],
+    scrub:       [0xa3986a, 0xac9f70],
+    scrubBush:   [0x7f855d, 0x8a8f66],
+    rock:        [0x8f867a, 0xa09889],
+    cliff:       [0x7d7469, 0x8b8175],
+    peakRock:    [0xaba69d, 0xbfbbb4],
+    alkali:      [0xd8d2be, 0xcdc6ae],
+    badland:     [0xb0684a, 0xc28a5e, 0x9a5940, 0xc79a6d],
+    trample:     [0xa8946a, 0xb09c72],
+    crops:       [0xc2a24e, 0x86a44c, 0x9b8a5a, 0xb3944e, 0x7fa14b],
+    cropAut:     [0xb08c48, 0xa3823f],
+    autPrairie:  [0xb39a52, 0xbb9d54],
+    autRiparian: [0xa5772f, 0xb8863a],
+    roadDirt:    [0x9c7f52, 0xa8895a],
+    bridge:      0x8a7355,
+    // buildings
+    timberWall: 0x9b8465, timberWall2: 0x8a7355, whitewash: 0xe6ded0, whitewash2: 0xd9cfba,
+    brick: 0x9c5a41, brick2: 0x8d4f38, stoneWall: 0xb0a894, stoneWall2: 0xa39b87,
+    canvas: 0xd9cfae, canvas2: 0xccc09a,
+    paint: [0x7a3b2e, 0x6f7d5a, 0xb08d3e, 0x5f7386, 0x8a5a6b, 0x4f6a5e],
+    tinRoof: 0x8f9494, tinRoof2: 0x848a8a, shingle: 0x7d6a52, shingle2: 0x71604a, shake: 0x9a8567, shake2:0x8d7a5c,
+    fortWood: 0x7d6647, door: 0x4a3826, window: 0x2f2b26, sign: 0xe8dcc0,
+    // flora
+    cwoodLo: 0x54803a, cwoodHi: 0x8bb455, cwoodAutLo: 0xb1852f, cwoodAutHi: 0xd3a344,
+    pineLo: 0x36573c, pineHi: 0x54804d, sageLo: 0x6f7852, sageHi: 0x878f63,
+    trunk: 0x6b4a32, trunkB: 0x7d5a3e,
+    water: { deep: 0x47798a, shallow: 0x7cb4a8, night: 0x101f2e }
+  },
+
+  // Gazette prose — plain-string variant pools chosen between with pickH.
+  // Interpolated headlines are assembled by functions near their systems;
+  // these are just the interchangeable phrasings.
+  gazette: {
+    flavor: [
+      'No news is good news, and this week the Territory supplied a surfeit of it.',
+      'A dog fight on Main Street drew a larger crowd than Sunday’s sermon. Draw your own conclusions.',
+      'The editor has been asked to state that the piano at the saloon is not, in fact, in tune.',
+      'A stranger rode through asking after land prices. He was told the truth, and rode on.',
+      'The doctor reports the territory disgustingly healthy. He has taken up whittling.',
+      'Word from the East arrives six weeks stale and is believed anyway.',
+      'A prairie sunset of unusual violence was enjoyed by all.',
+      'The stage was late again; the driver blames the road, the road blames the county.',
+      'A hen belonging to the widow Pell laid an egg of remarkable size. The county holds its breath.',
+      'This paper is informed that the new schoolteacher can spell. We shall see how long she stays.',
+      'A mule went missing Tuesday and was found Thursday, unrepentant.',
+      'The temperance society met, adjourned early, and was seen afterward at the saloon in good fellowship.',
+      'Prices are up, spirits are down, and the weather declines to take sides.',
+      'A traveling photographer passed through; several citizens now know what they look like.',
+      'The editor thanks the reader who paid his subscription in eggs. They were fresh.'],
+    agenda: {
+      governor: ['keeping his chair through the next mail from Washington','a courthouse with columns','being remembered fondly, or at least remembered','a railroad with his name on the depot','never again reading a newspaper'],
+      sheriff: ['a quiet county','the rustlers in the breaks','re-election','a night’s sleep','a bigger office and a smaller jail'],
+      marshal: ['a name that carries','the territory’s worst men','a long ride and a short list','the reward posted on the gang','dying in bed, for a change'],
+      judge: ['the letter of the law','the spirit of the law, price on application','a full docket','a bench with a cushion','being called Your Honor at supper'],
+      preacher: ['the salvation of Main Street','a new church bell','a congregation that stays awake','one fewer saloon'],
+      outlaw: ['one last job','the money in that vault','staying ahead of the marshal','a fresh horse and a dark night','a legend larger than the bounty'],
+      outfit: ['more range','water rights','the family name','a good year for beef','the county in its pocket','the rival outfit humbled'],
+      townsfolk: ['getting by','a quarter-section of good bottomland','a letter from back East','a dry roof and a full larder','the nerve to leave, or the sense to stay']
+    },
+    mourning: ['The territory is poorer for it.','Services Sunday.','He owed this paper two dollars, now forgiven.','Mourned by all who knew her, and several who owed her money.',
+      'The flag at the courthouse hangs at half its usual enthusiasm.','A good hand with horses, and no worse than most with men.','The saloon observed a full minute of silence, a personal record.','Remembered kindly, which is more than was expected.'],
+    marriageAside: ['The whole county danced.','Cake was had by all.','The fiddler collapsed near midnight and was replaced.',
+      'The bride’s outfit and the groom’s have agreed not to shoot at each other until spring.','Two families, one grudge fewer.','The parson pronounced them wed and the saloon pronounced it an occasion.','Rice was thrown; a chicken profited.'],
+    electionAside: ['The count was orderly, mostly.','Whiskey flowed in both directions.','Three ballots were eaten by a dog; the dog voted twice.',
+      'The tally was certified, disputed, and certified again.','Turnout was high, sobriety less so.','Both candidates claimed a mandate; one claimed the ballot box.','The losing side has retired to reconsider its options and its ammunition.'],
+    assassinSpot: ['on the courthouse steps','leaving the hotel','at his own supper table','in front of the land office','as the stage came in','crossing the plaza at noon'],
+    gunfightGround: ['river crossing','breaks','waterholes','fence line','dry wash','line shack','wagon road','far pasture'],
+    twisterStruck: ['A piano was found in a tree, playable.','The church stands; the saloon does not; sermons write themselves.','No lives lost, by a margin nobody wishes to measure.',
+      'A wagon was set down two streets over, right side up.','The livery lost its roof; the horses lost their composure.','A hen was recovered a mile off, laying as though nothing happened.','Where the barn stood there is now a very clean patch of ground.'],
+    stoveFire: ['a knocked lamp at the saloon','a stovepipe left to its own devices','a smith’s spark on a windy day','a candle and a careless sleeve','a cook fire that grew ambitious','a lantern kicked by a nervous horse'],
+    burnedOut: ['Rebuilding talk began before the ashes cooled.','Losses are counted in roofs and years.','The insurance man is expected, eventually, on the stage.','Neighbors turned out with buckets and, later, with lumber.','What the flames spared, the smoke has flavored.'],
+    choleraArrival: ['with the freight','on the stage','with the movers','in the well, some say','on a boat from downriver','with a drummer nobody can now find'],
+    ghostRoad: ['mesa road','south road','old freight road','river trail','high line'],
+    railEndOfTrack: ['Payday emptied three saloons and filled two cells.','The cook quit again.','A visiting senator drove a spike and bent it.',
+      'The graders struck rock and struck it back.','A section boss and a section of track parted ways.','Rain turned the cut to soup; the iron waited.','The company promises the cars by Christmas, and has for two Christmases.'],
+    twisterDir: ['west','north','east','south','northwest','northeast','southwest','southeast'],
+    prairieDir: ['east','west','north','south','northeast','southwest','northwest','southeast'],
+    roadAgentDir: ['north','south','east','west','northwest','southeast','northeast','southwest']
+  }
+};
+
+// ----- back-compatible aliases (identifiers used throughout the app) -----
+const MONTHS = CONTENT.calendar.months, SEASONS = CONTENT.calendar.seasons, GLYPHS = CONTENT.calendar.glyphs;
+const NAMES_M = CONTENT.people.male, NAMES_F = CONTENT.people.female, SURNAMES = CONTENT.people.surnames, TRAITS = CONTENT.people.traits;
+
+// ----- place / river / peak generator (reads CONTENT.places) -----
 const NAME = (()=>{
-  const pre = ['Dry','Dead','Silver','Gold','Coyote','Rattlesnake','Buzzard','Alkali','Bitter','Lone','Red','Broken',
-    'Whiskey','Eagle','Antelope','Copper','Sundown','Wagon','Twin','Adobe','Cactus','Mustang','Bone','Salt','Cinder',
-    'Dusty','Hollow','Iron','Roan','Sulphur','Bent','Crow','Grey','Wolf','Powder'];
-  const suf = ['Gulch','Creek','Springs','Flats','Mesa','Bend','Crossing','Wells','Ridge','Fork','Hollow','Bluff','Gap','Butte','Draw','Sink','Camp'];
-  const sufGrand = ['City','Springs','Junction','Crossing','Wells'];
-  const spA = ['Agua','Mesa','Loma','Cerro','Rio','Piedra','Casa'];
-  const spB = [' Seca',' Verde',' Alta',' Roja',' Dulce',' Amarga',' Perdida'];
-  const spSan = ['San Elmo','San Rafael','Santa Rosa','San Marcos','Santa Fe de Oro','San Aldo','Santa Ynez'];
-  const rivPre = ['Big','Muddy','Green','Bitter','Snake','Wind','Smoke','Bone','Salt','Roan','Powder','Cottonwood'];
-  const pkPre = ['Old','Black','Grey','Signal','Lookout','Thunder','Castle','Wildhorse'];
-  const pkSuf = [' Baldy',' Peak',' Mountain',' Butte',' Horn',' Knob'];
+  const P = CONTENT.places;
   return {
     spanishLean: 0,
     place(r, grand){
       let n, guard = 0;
       do {
         if(chance(r, NAME.spanishLean)){
-          n = chance(r,0.4) ? pick(r,spSan) : pick(r,spA) + pick(r,spB);
+          n = chance(r,0.4) ? pick(r,P.spanishSaints) : pick(r,P.spanishA) + pick(r,P.spanishB);
         } else {
-          n = pick(r,pre) + ' ' + pick(r, grand ? sufGrand : suf);
+          n = pick(r,P.pre) + ' ' + pick(r, grand ? P.sufGrand : P.suf);
         }
         guard++;
       } while(NAME.used.has(n) && guard < 40);
       NAME.used.add(n);
       return n;
     },
-    river(r){ return 'The ' + pick(r,rivPre) + ' River'; },
-    peak(r){ return pick(r,pkPre) + pick(r,pkSuf); },
+    river(r){ return 'The ' + pick(r,P.rivers) + ' River'; },
+    peak(r){ return pick(r,P.peakPre) + pick(r,P.peakSuf); },
     used: new Set()
   };
 })();
-const NAMES_M = ['Ezra','Silas','Jedediah','Amos','Cole','Wyatt','Eli','Levi','Caleb','Gideon','Harlan','Emmett','Roy','Frank',
-  'Jesse','Walt','Clay','Boone','August','Everett','Hiram','Lucius','Mort','Ike','Virgil','Morgan','Zeke','Cassius','Abel','Rufus'];
-const NAMES_F = ['Cora','Adelaide','Mattie','Pearl','Etta','Clara','Josie','Belle','Hattie','Lucinda','Abigail','May','Rosa',
-  'Dora','Nell','Sadie','Vera','Augusta','Minnie','Faye','Ada','Ruth','Tillie','Constance','Ida','Georgia','Alma','Lavinia'];
-const SURNAMES = ['Cartwright','Holloway','McAllister','Boone','Dunbar','Whitfield','Sloane','Barlow','Kane','Hardin',
-  'Calloway','Ashford','Beaumont','Ruiz','Vasquez','Ortega','Delgado','Thorne','Pickett','Granger','Mercer','Colton',
-  'Bishop','Tate','Vance','Lockhart','Shepherd','Quinn','Crane','Marlowe','Hobbs','Stroud'];
-const TRAITS = ['bold','craven','just','cruel','shrewd','dull','pious','cynical','fertile','sickly','sober','drunkard',
-  'honest','crooked','hot-headed','patient'];
 
 // ---------- 6. palettes ----------
-const PAL = {
-  prairie:     [0x99934f, 0xa49c58],
-  prairieDry:  [0xb3a25e, 0xbca763],
-  farm:        [0x7f9b4e, 0x8ba556],
-  riparian:    [0x6f9048, 0x7c9c52],
-  pineFloor:   [0x5a7244, 0x647c4b],
-  scrub:       [0xa3986a, 0xac9f70],
-  scrubBush:   [0x7f855d, 0x8a8f66],
-  rock:        [0x8f867a, 0xa09889],
-  cliff:       [0x7d7469, 0x8b8175],
-  peakRock:    [0xaba69d, 0xbfbbb4],
-  alkali:      [0xd8d2be, 0xcdc6ae],
-  badland:     [0xb0684a, 0xc28a5e, 0x9a5940, 0xc79a6d],
-  trample:     [0xa8946a, 0xb09c72],
-  crops:       [0xc2a24e, 0x86a44c, 0x9b8a5a, 0xb3944e, 0x7fa14b],
-  cropAut:     [0xb08c48, 0xa3823f],
-  autPrairie:  [0xb39a52, 0xbb9d54],
-  autRiparian: [0xa5772f, 0xb8863a],
-  roadDirt:    [0x9c7f52, 0xa8895a],
-  bridge:      0x8a7355,
-  // buildings
-  timberWall: 0x9b8465, timberWall2: 0x8a7355, whitewash: 0xe6ded0, whitewash2: 0xd9cfba,
-  brick: 0x9c5a41, brick2: 0x8d4f38, stoneWall: 0xb0a894, stoneWall2: 0xa39b87,
-  canvas: 0xd9cfae, canvas2: 0xccc09a,
-  paint: [0x7a3b2e, 0x6f7d5a, 0xb08d3e, 0x5f7386, 0x8a5a6b, 0x4f6a5e],
-  tinRoof: 0x8f9494, tinRoof2: 0x848a8a, shingle: 0x7d6a52, shingle2: 0x71604a, shake: 0x9a8567, shake2:0x8d7a5c,
-  fortWood: 0x7d6647, door: 0x4a3826, window: 0x2f2b26, sign: 0xe8dcc0,
-  // flora
-  cwoodLo: 0x54803a, cwoodHi: 0x8bb455, cwoodAutLo: 0xb1852f, cwoodAutHi: 0xd3a344,
-  pineLo: 0x36573c, pineHi: 0x54804d, sageLo: 0x6f7852, sageHi: 0x878f63,
-  trunk: 0x6b4a32, trunkB: 0x7d5a3e,
-  water: { deep: 0x47798a, shallow: 0x7cb4a8, night: 0x101f2e }
-};
+const PAL = CONTENT.palette;   // master world palette — edit under CONTENT.palette above
 
 // ---------- 7. shared shader uniforms & the one world material ----------
 const SH = {
@@ -1077,8 +1241,7 @@ function genSettlements(){
   });
   W.settlements = sets;
   W.seatName = sets[0].name;
-  W.countyName = pick(R, ['Alkali','Antelope','Buzzard','Caldera','Cottonwood','Coyote','Jubilee','Liberty',
-    'Mesa','Providence','Roan','Sage','Silverado','Sundown','Vermilion','Wagonwheel']) + ' County';
+  W.countyName = pick(R, CONTENT.places.counties) + ' County';
   sets.forEach(s => {
     s.y = hAt(s.x, s.z);
     flattenPad(s.x, s.z, s.kind==='seat'?34:s.kind==='town'?22:12, s.y);
@@ -1757,14 +1920,15 @@ function drawBrandGlyph(g, glyph, s){
   g.stroke();
 }
 function makeBrand(R, letterHint){
+  const BR = CONTENT.brands;
   const cores = [
-    {k:'letter', ch:letterHint || pick(R,'ABCDEHJKLMNRSTVWXY'.split(''))},
-    {k:'letter', ch:letterHint || pick(R,'ABCDEHJKLMNRSTVWXY'.split(''))},
-    {k:'digit', ch:pick(R,'2346789'.split(''))},
-    {k:'diamond'},{k:'star'},{k:'horseshoe'},{k:'arrow'},{k:'cross'},{k:'heart'},{k:'pitchfork'},{k:'spur'}
+    {k:'letter', ch:letterHint || pick(R,BR.letterPool.split(''))},
+    {k:'letter', ch:letterHint || pick(R,BR.letterPool.split(''))},
+    {k:'digit', ch:pick(R,BR.digitPool.split(''))},
+    ...BR.shapes.map(k=>({k}))
   ];
   const core = pick(R, cores);
-  const mods = ['none','bar','rocker','lazy','circle','flying','double'];
+  const mods = BR.modifiers;
   const mod = pick(R, mods);
   const coreName = core.k==='letter'||core.k==='digit' ? core.ch :
     core.k.charAt(0).toUpperCase()+core.k.slice(1);
@@ -1776,7 +1940,7 @@ function makeBrand(R, letterHint){
     case 'circle': name = 'Circle ' + coreName; break;
     case 'flying': name = 'Flying ' + coreName; break;
     case 'double': name = 'Double ' + coreName; break;
-    default: name = coreName + (core.k==='letter' ? ' ' + pick(R,['Cross','Slash','Quarter','Half']) : '');
+    default: name = coreName + (core.k==='letter' ? ' ' + pick(R,BR.letterSuffix) : '');
   }
   const cv = document.createElement('canvas');
   cv.width = cv.height = 96;
@@ -1827,10 +1991,10 @@ function genOutfits(){
   W.notables = [];
   NOTABLE_ID = 1;
   W.outfits = [];
-  const tintPairs = [[0x8b3a2e,0xd9b48a],[0x3f5a5e,0xa8c2b8],[0x6b5a86,0xcabede],[0x9c6a2e,0xe3cb9a],[0x54633c,0xbcc9a0],[0x7d3a55,0xd8aabe]];
+  const tintPairs = CONTENT.outfits.tints;
   const ranches = W.settlements.filter(s=>s.ranch);
   const miningTown = W.settlements.find(s=>s.mining);
-  const kinds = ['cattle','cattle','merchant'];
+  const kinds = CONTENT.outfits.kinds.slice();
   if(miningTown) kinds.splice(2, 0, 'mining');
   if(ranches.length > 2 || chance(R,0.4)) kinds.unshift('cattle');
   let ranchI = 0;
@@ -1862,7 +2026,7 @@ function genOutfits(){
   });
   // the territory's officers
   W.gov = makeNotable({outfit:-1, role:'governor', age:ri(R,45,60)}).id;
-  const offRoles = [['sheriff',-1],['marshal',-1],['judge',-1],['preacher',-2],['doctor',-2],['editor',-2]];
+  const offRoles = CONTENT.roles.slots;
   offRoles.forEach(([role, oi]) => {
     const n = makeNotable({outfit:oi, role, age:ri(R,32,58), epithet: role==='doctor'?'Doc':null});
     if(chance(R,0.6)){
@@ -1884,8 +2048,7 @@ function genOutfits(){
 }
 function roleOf(n){
   if(!n.role) return n.outfit >= 0 ? 'of ' + W.outfits[n.outfit].name : 'townsfolk';
-  const t = {governor:'Territorial Governor', sheriff:'County Sheriff', marshal:'U.S. Marshal', judge:'District Judge',
-    preacher:'Preacher', doctor:'Physician', editor:'Editor of the Gazette', head:'head of the outfit'};
+  const t = CONTENT.roles.titles;
   return t[n.role] || n.role;
 }
 
@@ -3247,14 +3410,7 @@ const T = {
   firstSnow: ()=> 'WINTER. — First snow lies on ' + (W.peak ? W.peak.name : 'the high country') + '. Lay in wood.',
   migrationOut: (a,b)=> 'MOVERS. — Wagons passed from ' + a.name + ' toward ' + b.name + ' all week, bound for fuller tables.',
   treasMile: v => 'THE TREASURY. — The territorial bank holds above ' + money(v) + '. This paper suggests a courthouse coat of paint.',
-  flavor: ()=> pickH([
-    'No news is good news, and this week the Territory supplied a surfeit of it.',
-    'A dog fight on Main Street drew a larger crowd than Sunday’s sermon. Draw your own conclusions.',
-    'The editor has been asked to state that the piano at the saloon is not, in fact, in tune.',
-    'A stranger rode through asking after land prices. He was told the truth, and rode on.',
-    'The doctor reports the territory disgustingly healthy. He has taken up whittling.',
-    'Word from the East arrives six weeks stale and is believed anyway.',
-    'A prairie sunset of unusual violence was enjoyed by all.'])
+  flavor: ()=> pickH(CONTENT.gazette.flavor)
 };
 function exportChronicle(){
   let out = (document.getElementById('gzMast').textContent || 'The Gazette').toUpperCase() + '\n' +
@@ -3333,10 +3489,10 @@ function precipFrame(dt){
 }
 
 // ---------- economy ----------
-const GOODS = ['grain','cattle','timber','ore','tools','whiskey','goods'];
-const G_NAME = {grain:'grain', cattle:'cattle', timber:'timber', ore:'ore', tools:'tools', whiskey:'whiskey', goods:'dry goods'};
-const G_BASE = {grain:1, cattle:3, timber:1.2, ore:2.5, tools:4, whiskey:3.5, goods:4.5};
-const G_UNIT = {grain:'sacks', cattle:'head', timber:'loads', ore:'tons', tools:'crates', whiskey:'barrels', goods:'bales'};
+const GOODS = CONTENT.goods.order;
+const G_NAME = CONTENT.goods.name;
+const G_BASE = CONTENT.goods.base;
+const G_UNIT = CONTENT.goods.unit;
 function initSettlementEconomy(s){
   const gx = Math.round(worldToGrid(s.x)), gz = Math.round(worldToGrid(s.z));
   let farm=0, forest=0, ore=0, range=0, tot=0;
@@ -4304,16 +4460,17 @@ function doPick(cx, cy){
 function livingNotables(){ return W.notables.filter(n=>n.alive); }
 function officialOf(role){ return W.notables.find(n => n.alive && n.role === role) || null; }
 function agendaOf(n){
-  if(n.role==='governor') return pickH(['keeping his chair through the next mail from Washington','a courthouse with columns','being remembered fondly, or at least remembered']);
-  if(n.role==='sheriff') return pickH(['a quiet county','the rustlers in the breaks','re-election']);
-  if(n.role==='marshal') return pickH(['a name that carries','the territory’s worst men','a long ride and a short list']);
-  if(n.role==='judge') return pickH(['the letter of the law','the spirit of the law, price on application','a full docket']);
+  const AG = CONTENT.gazette.agenda;
+  if(n.role==='governor') return pickH(AG.governor);
+  if(n.role==='sheriff') return pickH(AG.sheriff);
+  if(n.role==='marshal') return pickH(AG.marshal);
+  if(n.role==='judge') return pickH(AG.judge);
   if(n.role==='editor') return 'the next number of this paper';
-  if(n.role==='preacher') return pickH(['the salvation of Main Street','a new church bell']);
+  if(n.role==='preacher') return pickH(AG.preacher);
   if(n.role==='doctor') return 'fewer patients, better paid';
-  if(n.role==='outlaw') return pickH(['one last job','the money in that vault','staying ahead of the marshal']);
-  if(n.outfit >= 0) return pickH(['more range','water rights','the family name','a good year for beef']);
-  return pickH(['getting by','a quarter-section of good bottomland','a letter from back East']);
+  if(n.role==='outlaw') return pickH(AG.outlaw);
+  if(n.outfit >= 0) return pickH(AG.outfit);
+  return pickH(AG.townsfolk);
 }
 function nLink(n){ return '<span class="nlink" data-nid="' + n.id + '">' + nName(n) + '</span>'; }
 function inspectNotable(n){
@@ -4340,7 +4497,7 @@ function appointOfficial(role, day){
   const n = pool.length ? pickH(pool) : makeNotable({outfit:-2, age: ri(R,30,50)});
   n.role = role;
   if(role==='sheriff' || role==='marshal' || role==='judge') n.outfit = -1;
-  const titles = {sheriff:'County Sheriff', marshal:'U.S. Marshal', judge:'District Judge', preacher:'preacher', doctor:'physician', editor:'editor'};
+  const titles = CONTENT.roles.appointTitles;
   chron('law', 'APPOINTMENT. — ' + nName(n) + ' takes up the duties of ' + (titles[role]||role) + '.', W.settlements[0].x, W.settlements[0].z, 3);
   return n;
 }
@@ -4413,7 +4570,7 @@ function killNotable(n, cause, day){
     n.role = null;
     appointOfficial(r, day);
   } else if(cause !== 'age' || chance(W.rng.hist, 0.12)){
-    chron('flavor', 'DIED. — ' + nName(n) + ', ' + causeTxt + '. ' + pickH(['The territory is poorer for it.','Services Sunday.','He owed this paper two dollars, now forgiven.','Mourned by all who knew her, and several who owed her money.']));
+    chron('flavor', 'DIED. — ' + nName(n) + ', ' + causeTxt + '. ' + pickH(CONTENT.gazette.mourning));
   }
 }
 function arrangeMarriage(manual, day){
@@ -4445,7 +4602,7 @@ function arrangeMarriage(manual, day){
   }
   const s = W.settlements[0];
   chron('law', 'MARRIED. — ' + nName(m) + ' to ' + nName(f) + ', at ' + s.name + '. ' +
-    pickH(['The whole county danced.','Cake was had by all.','The fiddler collapsed near midnight and was replaced.']), s.x, s.z, 6);
+    pickH(CONTENT.gazette.marriageAside), s.x, s.z, 6);
   outfitsDirty();
   return true;
 }
@@ -4626,7 +4783,7 @@ function countyElection(day){
   chron('law', 'ELECTION. — ' + nName(win.n) + ' is returned County Sheriff' +
     (win.backer >= 0 ? ', with the open blessing of ' + W.outfits[win.backer].name : '') +
     ', by a margin of ' + Math.max(1,Math.round(margin*100)) + ' in the hundred. ' +
-    pickH(['The count was orderly, mostly.','Whiskey flowed in both directions.','Three ballots were eaten by a dog; the dog voted twice.']),
+    pickH(CONTENT.gazette.electionAside),
     S0.x, S0.z, 6);
   if(margin < 0.12 && lose.backer >= 0){
     const lo = W.outfits[lose.backer];
@@ -4731,12 +4888,12 @@ function resolveGunfight(a, b, day){
   let leadLine = '';
   if(ll && chance(R, 0.1)){ killNotable(ll, 'gunfight', day); leadLine = ' ' + nName(ll) + ' will not ride home.'; }
   else if(lw && !lw.epithet && chance(R, 0.22)){
-    lw.epithet = pickH(['Deadeye','Iron','Lucky','Two-Gun','the Wolf','Longshot']);
+    lw.epithet = pickH(CONTENT.epithets.gunfight);
     leadLine = ' Men are calling ' + lw.given + ' ' + lw.sur + ' “' + lw.epithet + '” now.';
   }
   const sideName = s2 => s2==='law' ? 'the law' : W.outfits[s2].name;
   chron('range', 'GUNFIGHT ON THE RANGE. — ' + sideName(winP.side) + ' drove ' + sideName(loseP.side) +
-    ' off the ground near the ' + pickH(['river crossing','breaks','waterholes','fence line']) + '; ' +
+    ' off the ground near the ' + pickH(CONTENT.gazette.gunfightGround) + '; ' +
     (casW+casL) + ' men down.' + leadLine, p.x, p.z, 8);
   // the beaten side routs for home
   if(loseP.strength < 8 || loseP.morale < 0.3){ disbandPosse(loseP); }
@@ -4961,16 +5118,8 @@ function paintOverlay(mode){
   W.ovTex.needsUpdate = true;
 }
 // ---------- acts ----------
-const ACT_DEFS = [
-  ['cholera', 'Unleash cholera ⌖', 4], ['fire', 'Start a fire ⌖', 4], ['flood', 'Flash flood', 4],
-  ['drought', 'Declare a drought', 4], ['twister', 'Send a twister ⌖', 4], ['gold', 'Strike gold ⌖', 4],
-  ['gang', 'Rouse the gang', 4], ['rustlers', 'Raise a rustler camp ⌖', 4],
-  ['assassinate', 'Shoot the governor', 3], ['contest', 'Contest the election', 3],
-  ['marriage', 'Broker a marriage', 3], ['bless', 'Bless the harvest', 3],
-  ['comet', 'Send a comet', 4], ['found', 'Charter a town ⌖', 3], ['grant', 'Grant $5,000', 3],
-  ['raze', 'Raze a building ⌖', 4], ['rail', 'Charter the railroad', 5]
-];
-const AIM_ACTS = new Set(['cholera','fire','twister','gold','rustlers','found','raze']);
+const ACT_DEFS = CONTENT.acts.defs;
+const AIM_ACTS = CONTENT.acts.aim;
 function buildActsPanel(){
   const host = document.getElementById('acts');
   host.innerHTML = '';
@@ -4995,7 +5144,7 @@ function runAct(name){
     case 'assassinate': {
       const gov = notable(W.gov);
       if(gov && gov.alive && gov.role === 'governor') {
-        chron('law', 'OUTRAGE. — Governor ' + nName(gov) + ' was shot down ' + pickH(['on the courthouse steps','leaving the hotel','at his own supper table']) + '. The assassin rode east, or west, or is among us.', S0.x, S0.z, 10);
+        chron('law', 'OUTRAGE. — Governor ' + nName(gov) + ' was shot down ' + pickH(CONTENT.gazette.assassinSpot) + '. The assassin rode east, or west, or is among us.', S0.x, S0.z, 10);
         killNotable(gov, 'shot', day);
         S0.unrest = Math.min(100, S0.unrest + 18);
         maybeWar(day, 'the murder of the governor', 38);
@@ -5093,7 +5242,7 @@ function tickCalamities(day){
       heading: Math.atan2(s.z - (s.z + Math.sin(ang)*startD), s.x - (s.x + Math.cos(ang)*startD)) + rr(R,-0.4,0.4),
       until: day + rr(R, 0.6, 1.4), speed: 1900, damaged: new Set()
     };
-    chron('fate', 'TWISTER. — A funnel has been sighted ' + pickH(['west','north','east','south']) + ' of ' + s.name + ', walking like it pays rent. Take to the cellars.', W.twister.x, W.twister.z, 9);
+    chron('fate', 'TWISTER. — A funnel has been sighted ' + pickH(CONTENT.gazette.twisterDir) + ' of ' + s.name + ', walking like it pays rent. Take to the cellars.', W.twister.x, W.twister.z, 9);
     ensureTwisterMesh();
   }
   if(W.twister){
@@ -5121,7 +5270,7 @@ function tickCalamities(day){
           s.prosperity = Math.max(0.05, s.prosperity - 0.04*n);
           if(!t.damaged.has(s)){
             t.damaged.add(s);
-            chron('fate', 'STRUCK. — The twister went through ' + s.name + ' and rearranged it. ' + pickH(['A piano was found in a tree, playable.','The church stands; the saloon does not; sermons write themselves.','No lives lost, by a margin nobody wishes to measure.']), s.x, s.z, 9);
+            chron('fate', 'STRUCK. — The twister went through ' + s.name + ' and rearranged it. ' + pickH(CONTENT.gazette.twisterStruck), s.x, s.z, 9);
             if(chance(R, 0.4)) igniteFire(s, 'a stove knocked over by the twister', day);
           }
         }
@@ -5191,7 +5340,7 @@ function tickFires(day){
     for(const c of cand) tot += fw(c);
     let roll = R()*tot, s = cand[0];
     for(const c of cand){ roll -= fw(c); if(roll <= 0){ s = c; break; } }
-    if(s) igniteFire(s, pickH(['a knocked lamp at the saloon','a stovepipe left to its own devices','a smith’s spark on a windy day']), day);
+    if(s) igniteFire(s, pickH(CONTENT.gazette.stoveFire), day);
   }
   // town fires spread building to building
   S.forEach(s => {
@@ -5226,7 +5375,7 @@ function tickFires(day){
     });
     if(!stillBurning && s.burning){
       s.burning = 0;
-      chron('fate', 'BURNED OUT. — The fire at ' + s.name + ' has eaten what it wanted. ' + pickH(['Rebuilding talk began before the ashes cooled.','Losses are counted in roofs and years.']), s.x, s.z, 5);
+      chron('fate', 'BURNED OUT. — The fire at ' + s.name + ' has eaten what it wanted. ' + pickH(CONTENT.gazette.burnedOut), s.x, s.z, 5);
       s.unrest = Math.min(100, s.unrest + 6);
     } else s.burning = stillBurning;
   });
@@ -5250,7 +5399,7 @@ function startPrairieFire(x, z, day, quiet){
   if(!W.pfire) W.pfire = { burning: new Map(), out: new Map() };
   W.pfire.burning.set(pfIdx(px,pz), day);
   if(!quiet || chance(W.rng.hist, 0.6))
-    chron('fate', 'PRAIRIE FIRE. — Smoke on the grass ' + pickH(['east','west','north','south']) + ' of ' + nearestSettlement(x,z).s.name + '. Men are riding out with sacks and shovels; the road may hold it.', x, z, 8);
+    chron('fate', 'PRAIRIE FIRE. — Smoke on the grass ' + pickH(CONTENT.gazette.prairieDir) + ' of ' + nearestSettlement(x,z).s.name + '. Men are riding out with sacks and shovels; the road may hold it.', x, z, 8);
   return true;
 }
 function tickPrairieFire(day){
@@ -5339,7 +5488,7 @@ function tickCholera(day){
   const R = W.rng.hist;
   if(chance(R, 0.0006 * W.rates.cholV * fateMult(day))){
     const s = pickH(W.settlements.filter(s2=>!s2.ghost));
-    if(s) infectSettlement(s, day, pickH(['with the freight','on the stage','with the movers']));
+    if(s) infectSettlement(s, day, pickH(CONTENT.gazette.choleraArrival));
   }
   W.settlements.forEach(s => {
     if(s.infected <= 0.001){ s.sus = Math.min(1, s.sus + 0.0004); return; }
@@ -5404,7 +5553,7 @@ function spawnRustlerCamp(day, atX, atZ){
   }
   const camp = { x, z, strength: ri(R, 18, 34), raids: 0, bounty: 0, boss: null, mesh: campMesh(x, z) };
   W.camps.push(camp);
-  if(chance(R, 0.5)) chron('law', 'ROAD AGENTS. — Freighters report riders shadowing the ' + pickH(['north','south','east','west']) + ' road. Travel armed, or entertaining.', x, z, 5);
+  if(chance(R, 0.5)) chron('law', 'ROAD AGENTS. — Freighters report riders shadowing the ' + pickH(CONTENT.gazette.roadAgentDir) + ' road. Travel armed, or entertaining.', x, z, 5);
   return camp;
 }
 function removeCamp(camp){
@@ -5451,7 +5600,7 @@ function tickRustlers(day){
     // a boss rises in an ignored camp
     if(!camp.boss && camp.strength > 60){
       const n = makeNotable({outfit:-2, role:'outlaw', age: ri(R, 26, 44)});
-      n.epithet = pickH(['Black','the Kid','Three-Finger','Dutch','the Preacher','Snake-Eye']);
+      n.epithet = pickH(CONTENT.epithets.rustlerBoss);
       n.bounty = 500 + camp.bounty;
       n.wanted = makeWantedPoster(n);
       camp.boss = n.id;
@@ -5537,11 +5686,11 @@ function initGang(){
     if(d > bd){ bd = d; bx = x; bz = z; }
   }
   const leader = makeNotable({outfit:-2, role:'outlaw', age: ri(R, 28, 42)});
-  leader.epithet = pickH(['Black','Midnight','the Colonel','Cimarron','Handsome','the Deacon']);
+  leader.epithet = pickH(CONTENT.epithets.gangLeader);
   leader.bounty = 1000;
   leader.wanted = makeWantedPoster(leader);
   W.gang = {
-    name: 'the ' + pickH(['Cimarron','Sundown','Dry River','Vermilion','Coyote','Silverado']) + ' ' + pickH(['Gang','Boys','Bunch']),
+    name: 'the ' + pickH(CONTENT.outfits.gangAdjective) + ' ' + pickH(CONTENT.outfits.gangCollective),
     leader: leader.id, state: 'dormant', x: bx, z: bz,
     strength: ri(R, 8, 14), loot: 0, dormantUntil: W.clock.day + 900,
     mesh: null, rideFrom: null, rideStart: 0, rideDist: 0, legend: false
@@ -5760,7 +5909,7 @@ function tickStrikes(day){
         s.mining = true;
         s.strike = { richness: rr(R, 1.6, 3), foundDay: day };
         s.geo.ore = 2.4;
-        s.name = s.name.replace(/ (Gulch|Creek|Springs|Flats|Mesa|Bend|Crossing|Wells|Ridge|Fork|Hollow|Bluff|Gap|Butte|Draw|Sink|Camp)$/, '') + pickH([' Camp',' Gulch',' Diggings']);
+        s.name = s.name.replace(new RegExp(' (' + CONTENT.places.suf.join('|') + ')$'), '') + pickH(CONTENT.places.strikeSuffix);
         if(s.lblIdx !== undefined && W.labels[s.lblIdx]) W.labels[s.lblIdx].el.textContent = s.name;
         s.buildings.forEach(b => { if(b.t === ARCH.HOUSE && chance(R,0.6)){ b.t = ARCH.TENT; b.tier = 1; } });
         const hf = findClearSpot(s, s.x+14, s.z-10, 4.2, 7);
@@ -5841,7 +5990,7 @@ function tickOmens(day){
   }
   // ghost lights in the breaks
   if(W.hasBadlands && chance(R, 0.0005)){
-    chron('myth', 'GHOST LIGHTS. — Travelers on the ' + pickH(['mesa road','south road']) + ' report lights walking the badlands where no man walks. The freighters now go around; the young men now go look.', S0.x, S0.z, 6);
+    chron('myth', 'GHOST LIGHTS. — Travelers on the ' + pickH(CONTENT.gazette.ghostRoad) + ' report lights walking the badlands where no man walks. The freighters now go around; the young men now go look.', S0.x, S0.z, 6);
   }
   // a white buffalo
   if(chance(R, 0.00025)){
@@ -6024,7 +6173,7 @@ function charterRailroad(day, forced){
   pts = resample(pts, 9);
   const cum = [0];
   for(let i=1;i<pts.length;i++) cum.push(cum[i-1] + dist2d(pts[i-1].x, pts[i-1].z, pts[i].x, pts[i].z));
-  const co = 'The ' + S0.name + ' & ' + pickH(['Western','Pacific','Overland','Great Plains']) + ' Rail Road';
+  const co = 'The ' + S0.name + ' & ' + pickH(CONTENT.outfits.railAdjective) + ' Rail Road';
   W.rail = {
     chartered: true, charterDay: day, co, pts, cum, dist: cum[cum.length-1],
     builtM: 0, chunks: [], chunkAt: 0, depots: [], trains: 0, done: false,
@@ -6148,7 +6297,7 @@ function tickRail(day){
       r.lastProg = r.builtM;
       railPointAt(r.builtM, _rp);
       chron('rail', 'END OF TRACK. — The graders are ' + (Math.round(r.builtM/160)/10) + ' miles in; the iron follows at a walk. ' +
-        pickH(['Payday emptied three saloons and filled two cells.','The cook quit again.','A visiting senator drove a spike and bent it.']), _rp.x, _rp.z, 6);
+        pickH(CONTENT.gazette.railEndOfTrack), _rp.x, _rp.z, 6);
     }
     // stations open as the head passes
     r.stationsAt.forEach(st => {
