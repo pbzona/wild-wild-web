@@ -1142,6 +1142,7 @@ function genRoads(){
   });
   W.bridges = [];
   W.roads.forEach(rd => bridgeRoad(rd));
+  W.settlements.forEach(refreshTrailSegs);
 }
 function segInt(a, b, c, d){
   const rx = b.x-a.x, rz = b.z-a.z, sx = d.x-c.x, sz = d.z-c.z;
@@ -1355,6 +1356,57 @@ function planStreetsFor(s, R){
   s.segs = segs;
 }
 
+// ----- keeping the lots off the roads -----
+function distPtSeg(px, pz, ax, az, bx, bz){
+  const dx = bx-ax, dz = bz-az;
+  const L = dx*dx + dz*dz || 1e-9;
+  const t = clamp(((px-ax)*dx + (pz-az)*dz)/L, 0, 1);
+  return Math.hypot(px - ax - dx*t, pz - az - dz*t);
+}
+// clearance half-radius per archetype (indexed by ARCH). Body only: porches
+// and balconies may overhang the boardwalk, which is period-correct.
+const ARCH_HALF = [3.1, 4.75, 4.0, 3.7, 3.3, 2.3, 4.25, 4.5, 5.25, 3.6, 2.5, 4.5, 6.0, 2.1, 1.2, 4.2, 6.5, 2.0, 16];
+// per-settlement cache of nearby inter-town trail segments, so growth-tick
+// placement never scans the whole road net
+function refreshTrailSegs(s){
+  const segs = [];
+  const reach = s.R*1.3 + 30;
+  const core = s.R*0.86;   // buildRoads stops drawing trails here; streets take over
+  for(const rd of W.roads){
+    const hw = rd.major ? 3.6 : 2.8;   // half of the rendered ribbon width
+    const P = rd.pts;
+    for(let i=1;i<P.length;i++){
+      if(dist2d((P[i-1].x+P[i].x)/2, (P[i-1].z+P[i].z)/2, s.x, s.z) > reach) continue;
+      if(dist2d(P[i-1].x,P[i-1].z,s.x,s.z) < core || dist2d(P[i].x,P[i].z,s.x,s.z) < core) continue;
+      segs.push({ax:P[i-1].x, az:P[i-1].z, bx:P[i].x, bz:P[i].z, hw});
+    }
+  }
+  s.trailSegs = segs;
+}
+// true when a building body of half-extent halfR at (x,z) stays off every
+// street and trail of settlement s
+function roadClear(s, x, z, halfR){
+  if(s.segs) for(const g of s.segs){
+    if(distPtSeg(x, z, g.ax, g.az, g.bx, g.bz) < g.w/2 + halfR) return false;
+  }
+  if(s.trailSegs) for(const g of s.trailSegs){
+    if(distPtSeg(x, z, g.ax, g.az, g.bx, g.bz) < g.hw + halfR) return false;
+  }
+  return true;
+}
+// same test against the raw road net, for sites outside any settlement's cache
+function trailClearAt(x, z, halfR){
+  for(const rd of W.roads){
+    const hw = rd.major ? 3.6 : 2.8;
+    const P = rd.pts;
+    for(let i=1;i<P.length;i++){
+      if(Math.abs(P[i].x - x) > 60 || Math.abs(P[i].z - z) > 60) continue;
+      if(distPtSeg(x, z, P[i-1].x, P[i-1].z, P[i].x, P[i].z) < hw + halfR) return false;
+    }
+  }
+  return true;
+}
+
 function genBuildings(){
   const R = W.rng.gen;
   const hash = new Map();
@@ -1384,10 +1436,24 @@ function genBuildings(){
     const px = -Math.sin(ma), pz = Math.cos(ma);
     place(s.x, s.z, s.kind==='seat'?20:s.kind==='town'?12:6);   // town square / dooryard
     function placeSpecial(t, dx, dz, tier, faceCenter, sc){
-      const bx = s.x + dx, bz = s.z + dz;
-      if(waterNear(bx,bz,10)) return null;
+      let bx = s.x + dx, bz = s.z + dz;
       const rL = t===ARCH.COURTHOUSE||t===ARCH.CHURCH ? 12 : 9;
-      if(!canPlace(bx,bz,rL)) return null;
+      const halfB = ARCH_HALF[t]*(sc||1);
+      // ranch dooryards keep their lane running to the door
+      const fits = (x,z) => !waterNear(x,z,10) && canPlace(x,z,rL) && (s.ranch || roadClear(s,x,z,halfB));
+      if(!fits(bx,bz)){
+        // nudge off the street: fixed candidate ring, no RNG draws
+        let found = false;
+        for(const rad of [5,9,13,17]){
+          for(let k=0;k<8;k++){
+            const a = k*Math.PI/4;
+            const cx = bx + Math.cos(a)*rad, cz = bz + Math.sin(a)*rad;
+            if(fits(cx,cz)){ bx = cx; bz = cz; found = true; break; }
+          }
+          if(found) break;
+        }
+        if(!found) return null;
+      }
       place(bx,bz,rL);
       flattenPad(bx,bz,rL+3,hAt(bx,bz));
       const ry = faceCenter!==undefined ? faceCenter : Math.atan2(s.x-bx, s.z-bz);
@@ -1431,25 +1497,32 @@ function genBuildings(){
         placeSpecial(ARCH.ELEVATOR, -px*44 + Math.cos(ma)*rr(R,-30,30), -pz*44 + Math.sin(ma)*rr(R,-30,30), 2, rr(R,0,6.28));
       }
       if(s.mining){
-        // headframe on the high side of town
-        let bx=s.x, bz=s.z, bh=-1;
+        // headframe on the high side of town — highest rim point clear of the roads
+        let bx=s.x, bz=s.z, bh=-1, cx=s.x, cz=s.z, ch=-1;
         for(let a=0;a<24;a++){
           const aa = a/24*Math.PI*2, rad = s.R*0.85;
           const hx = s.x+Math.cos(aa)*rad, hz = s.z+Math.sin(aa)*rad;
           const hh = hAt(hx,hz);
           if(hh > bh){ bh=hh; bx=hx; bz=hz; }
+          if(hh > ch && roadClear(s,hx,hz,4.2)){ ch=hh; cx=hx; cz=hz; }
         }
+        if(ch > -1){ bx=cx; bz=cz; bh=ch; }
         flattenPad(bx,bz,14,bh);
         B.push({t:ARCH.HEADFRAME, x:bx, z:bz, ry:Math.atan2(s.x-bx, s.z-bz), tier:2, sc:1});
         place(bx,bz,11);
-        B.push({t:ARCH.WAREHOUSE, x:bx+px*14, z:bz+pz*14, ry:rr(R,0,6.28), tier:1, sc:0.9});
-        place(bx+px*14, bz+pz*14, 8);
+        const wry = rr(R,0,6.28);
+        let wx = bx+px*14, wz = bz+pz*14;
+        if(!roadClear(s,wx,wz,5.25)){ wx = bx-px*14; wz = bz-pz*14; }
+        if(roadClear(s,wx,wz,5.25) && canPlace(wx,wz,8)){
+          B.push({t:ARCH.WAREHOUSE, x:wx, z:wz, ry:wry, tier:1, sc:0.9});
+          place(wx, wz, 8);
+        }
       }
       if(s.kind==='hamlet') placeSpecial(ARCH.WINDMILL, px*14, pz*14, 1, 0);
     }
     // walk the streets placing lots
     let n = B.length;
-    for(let pass=0; pass<3 && n<target; pass++){
+    for(let pass=0; pass<4 && n<target; pass++){
       for(const seg of s.segs){
         if(n >= target) break;
         const dxs = seg.bx-seg.ax, dzs = seg.bz-seg.az;
@@ -1464,8 +1537,9 @@ function genBuildings(){
             if(n >= target) break;
             if(chance(R, pass===0 ? 0.16 : pass===1 ? 0.4 : 0.55)) continue;
             const depth = rr(R, 7.5, 10.5);
-            const off = seg.w/2 + depth/2 + rr(R,0.4,1.6);
-            const bx = lx + nx*off*side, bz = lz + nz*off*side;
+            const margin = rr(R,0.4,1.6);
+            let off = seg.w/2 + depth/2 + margin;
+            let bx = lx + nx*off*side, bz = lz + nz*off*side;
             const dC = dist2d(bx,bz,s.x,s.z);
             if(dC > s.R) continue;
             if(waterNear(bx,bz,9)) continue;
@@ -1478,7 +1552,6 @@ function genBuildings(){
             if(!ok) continue;
             const lotR = rr(R, 5.2, 6.6);
             if(!canPlace(bx,bz,lotR*0.62)) continue;
-            place(bx,bz,lotR*0.62);
             const ry = Math.atan2(nx*side, nz*side) + Math.PI;
             const dd = dC / s.R;
             let t2, tier;
@@ -1494,12 +1567,25 @@ function genBuildings(){
               tier = clamp(Math.round(tierBase + rr(R,-1.2,0.3)), 1, 3);
             }
             if(t2===ARCH.TENT) tier = 1;
-            const b = {t:t2, x:bx, z:bz, ry, tier, sc:rr(R,0.92,1.1)};
+            const sc = rr(R,0.92,1.1);
+            const halfB = ARCH_HALF[t2]*sc;
+            if(halfB > depth/2){
+              // deeper than the lot: set the body further back from the frontage
+              off = seg.w/2 + halfB + margin;
+              bx = lx + nx*off*side; bz = lz + nz*off*side;
+              if(dist2d(bx,bz,s.x,s.z) > s.R) continue;
+              if(waterNear(bx,bz,9)) continue;
+              if(!canPlace(bx,bz,lotR*0.62)) continue;
+            }
+            if(!roadClear(s, bx, bz, halfB)) continue;
+            place(bx,bz,lotR*0.62);
+            const b = {t:t2, x:bx, z:bz, ry, tier, sc};
             B.push(b);
             n++;
             // boardwalk & hitching rail in front of Main Street commerce
             if(seg.kind==='main' && COMMERCIAL.has(t2) && tier>=2){
-              const fx = bx - nx*side*(depth/2+1.2), fz = bz - nz*side*(depth/2+1.2);
+              const half = Math.max(depth/2, halfB);
+              const fx = bx - nx*side*(half+1.2), fz = bz - nz*side*(half+1.2);
               s.props.push({t:'hitch', x:fx, z:fz, ry});
             }
           }
@@ -1510,12 +1596,15 @@ function genBuildings(){
     if(s.kind === 'seat'){
       const fa = rr(R,0,6.28);
       const fd = s.R*0.85;
-      const fx = s.x + Math.cos(fa)*fd, fz = s.z + Math.sin(fa)*fd;
-      if(!waterNear(fx,fz,14) && slopeAt(fx,fz) < 0.3){
+      for(let k=0;k<12;k++){
+        const a = fa + k*Math.PI/6;
+        const fx = s.x + Math.cos(a)*fd, fz = s.z + Math.sin(a)*fd;
+        if(waterNear(fx,fz,14) || slopeAt(fx,fz) >= 0.3 || !roadClear(s,fx,fz,16)) continue;
         flattenPad(fx,fz,30,hAt(fx,fz));
         s.fort = {x:fx, z:fz, ry:rr(R,0,6.28), r:26};
         B.push({t:ARCH.FORT, x:fx, z:fz, ry:s.fort.ry, tier:2, sc:1});
         place(fx,fz,26);
+        break;
       }
     }
     // dooryard clutter
@@ -1554,7 +1643,7 @@ function genBuildings(){
       const away = Math.atan2(s.z-best.z, s.x-best.x);
       const mx = best.x + Math.cos(away)*(best.w*0.5+5);
       const mz = best.z + Math.sin(away)*(best.w*0.5+5);
-      if(slopeAt(mx,mz) < 0.5){
+      if(slopeAt(mx,mz) < 0.5 && trailClearAt(mx,mz,3.3) && roadClear(s,mx,mz,3.3)){
         W.mills.push({x:mx, z:mz, ry:away+Math.PI/2, wx:best.x+Math.cos(away)*(best.w*0.5-0.5), wz:best.z+Math.sin(away)*(best.w*0.5-0.5), wy:best.y});
         s.buildings.push({t:ARCH.MILL, x:mx, z:mz, ry:away+Math.PI/2, tier:2, sc:1});
       }
@@ -3256,6 +3345,7 @@ function initSettlementEconomy(s){
   s.stores = { grain: s.pop*0.5 + 40, cattle: 0, timber: 20, ore: 0, tools: 8, whiskey: 10, goods: 8 };
   s.herd = s.ranch ? ri(W.rng.hist, 500, 1400) : 0;
   s.prosperity = 0.5;
+  s.vault = 0;
   s.unrest = 12;
   s.hunger = 0;
   s.tradeAct = 0;
@@ -3265,7 +3355,7 @@ function initSettlementEconomy(s){
 function needRate(s, g){
   if(g==='grain') return s.pop*0.011;
   if(g==='tools'||g==='goods') return s.pop*0.0016 + 0.02;
-  if(g==='whiskey') return (s.pop*0.0022 + 0.02) * (s.strike ? 3 : 1);
+  if(g==='whiskey') return (s.pop*0.0022 + 0.02) * (s.strike ? 3 : 1) * (1 + 0.35*Math.min(s.nSaloon||0, 3));
   if(g==='timber') return s.pop*0.001 + 0.05;
   if(g==='ore') return (s.mining ? 0.05 : s.kind!=='hamlet' ? s.pop*0.0006 : 0.01);
   if(g==='cattle') return s.pop*0.0012 + 0.01;
@@ -3678,10 +3768,29 @@ function driveArrived(a, dst){
 }
 
 // ---------- population, growth & decay ----------
+// deterministic candidate ring for one-off sim placements (headframes, civics):
+// first spot clear of roads, water, and other buildings wins; falls back to the
+// asked-for spot so the building always exists
+function findClearSpot(s, x0, z0, halfR, gap, radii){
+  for(const rad of radii || [0,6,10,14,18]){
+    for(let k=0;k<8;k++){
+      const a = k*Math.PI/4;
+      const x = x0 + Math.cos(a)*rad, z = z0 + Math.sin(a)*rad;
+      if(roadClear(s,x,z,halfR)){
+        const gi = idx(Math.round(worldToGrid(x)), Math.round(worldToGrid(z)));
+        let ok = W.distWater[gi]*CELL >= 9;
+        if(ok) for(const b of s.buildings){ if(dist2d(x,z,b.x,b.z) < gap){ ok=false; break; } }
+        if(ok) return {x, z};
+      }
+      if(rad === 0) break;
+    }
+  }
+  return {x:x0, z:z0};
+}
 function addBuildingTo(s){
   const R = W.rng.hist;
   if(!s.segs || !s.segs.length) return null;
-  for(let tries=0; tries<26; tries++){
+  for(let tries=0; tries<30; tries++){
     const seg = pickH(s.segs);
     const dxs = seg.bx-seg.ax, dzs = seg.bz-seg.az;
     const len = Math.hypot(dxs,dzs);
@@ -3689,7 +3798,13 @@ function addBuildingTo(s){
     const nx = -dzs/len, nz = dxs/len;
     const t = R();
     const side = chance(R,0.5) ? 1 : -1;
-    const off = seg.w/2 + rr(R,4.4,6.6);
+    const tier0 = s.prosperity > 0.72 ? 2 : s.prosperity > 0.35 ? ri(R,1,2) : 1;
+    const pool = s.prosperity > 0.6 ? [ARCH.HOUSE,ARCH.HOUSE,ARCH.STORE,ARCH.BARN] : [ARCH.HOUSE,ARCH.HOUSE,ARCH.TENT,ARCH.BARN];
+    const bt = pickH(pool);
+    const sc = rr(R,0.92,1.1);
+    const halfB = ARCH_HALF[bt]*sc;
+    // the old setback, but never less than the body needs
+    const off = seg.w/2 + Math.max(rr(R,4.4,6.6), halfB + 0.4);
     const bx = seg.ax + dxs*t + nx*off*side, bz = seg.az + dzs*t + nz*off*side;
     if(dist2d(bx,bz,s.x,s.z) > s.R*1.06) continue;
     const gi = idx(Math.round(worldToGrid(bx)), Math.round(worldToGrid(bz)));
@@ -3699,9 +3814,8 @@ function addBuildingTo(s){
     if(!ok) continue;
     const h0 = hAt(bx,bz);
     if(Math.abs(hAt(bx+4,bz)-h0) > 4.2 || Math.abs(hAt(bx,bz+4)-h0) > 4.2) continue;
-    const tier = s.prosperity > 0.72 ? 2 : s.prosperity > 0.35 ? ri(R,1,2) : 1;
-    const pool = s.prosperity > 0.6 ? [ARCH.HOUSE,ARCH.HOUSE,ARCH.STORE,ARCH.BARN] : [ARCH.HOUSE,ARCH.HOUSE,ARCH.TENT,ARCH.BARN];
-    const b = {t: pickH(pool), x:bx, z:bz, ry: Math.atan2(nx*side, nz*side) + Math.PI, tier, sc:rr(R,0.92,1.1)};
+    if(!roadClear(s,bx,bz,halfB)) continue;
+    const b = {t: bt, x:bx, z:bz, ry: Math.atan2(nx*side, nz*side) + Math.PI, tier: tier0, sc};
     if(b.t===ARCH.TENT) b.tier = 1;
     s.buildings.push(b);
     queueRebuild(s);
@@ -3709,6 +3823,38 @@ function addBuildingTo(s){
   }
   return null;
 }
+// a town that has grown into the need raises its civic buildings near the square
+function addCivicTo(s, t){
+  const R = W.rng.hist;
+  const a0 = rr(R, 0, 6.28);
+  const halfB = ARCH_HALF[t];
+  for(const rad of [12, 16, 20, 24]){
+    for(let k=0; k<8; k++){
+      const a = a0 + k*Math.PI/4;
+      const x = s.x + Math.cos(a)*rad, z = s.z + Math.sin(a)*rad;
+      if(!roadClear(s, x, z, halfB)) continue;
+      const gi = idx(Math.round(worldToGrid(x)), Math.round(worldToGrid(z)));
+      if(W.distWater[gi]*CELL < 9) continue;
+      const h0 = hAt(x, z);
+      if(Math.abs(hAt(x+4,z)-h0) > 4.2 || Math.abs(hAt(x,z+4)-h0) > 4.2) continue;
+      let ok = true;
+      for(const b of s.buildings){ if(dist2d(x,z,b.x,b.z) < (t===ARCH.CHURCH ? 10 : 8)){ ok=false; break; } }
+      if(!ok) continue;
+      const b = {t, x, z, ry: Math.atan2(s.x-x, s.z-z), tier: 2, sc: 1};
+      s.buildings.push(b);
+      queueRebuild(s);
+      return b;
+    }
+  }
+  return null;
+}
+const CIVIC_NEWS = {
+  [ARCH.CHURCH]: { cls:'flavor', txt: s => 'A STEEPLE FOR ' + s.name.toUpperCase() + '. — The congregation has raised a church, and expects behavior to follow.' },
+  [ARCH.JAIL]:   { cls:'law',    txt: s => 'A JAIL AT ' + s.name.toUpperCase() + '. — Stone, iron, and no view. The county judges it money well spent.' },
+  [ARCH.HOTEL]:  { cls:'trade',  txt: s => 'A HOTEL FOR ' + s.name.toUpperCase() + '. — Clean sheets and a register full of aliases.' },
+  [ARCH.BANK]:   { cls:'trade',  txt: s => 'A BANK AT ' + s.name.toUpperCase() + '. — Brick, a vault, and a clerk who knows every balance in town. Safer than the mattress, the advertisement says.' },
+  [ARCH.SALOON]: { cls:'flavor', txt: s => 'ANOTHER SALOON AT ' + s.name.toUpperCase() + '. — The town has voted with its thirst.' }
+};
 function removeBuildingFrom(s){
   const cand = s.buildings.filter(b => [ARCH.HOUSE,ARCH.TENT,ARCH.BARN,ARCH.STORE].includes(b.t));
   if(!cand.length) return false;
@@ -3806,6 +3952,7 @@ function foundTown(day, atX, atZ){
   registerRoadEntries(rd);
   bridgeRoad(rd);
   planStreetsFor(s, R);
+  W.settlements.forEach(refreshTrailSegs);   // the new road can skirt third towns
   initSettlementEconomy(s);
   s.pop = ri(R, 35, 60);
   for(let i=0;i<ri(R,7,11);i++) addBuildingTo(s);
@@ -3852,6 +3999,7 @@ function tickDay(day){
   tickOmens(day);
   tickGang(day);
   tickGangShowdown(day);
+  tickTrials(day);
   tickStrikes(day);
   tickRail(day);
   // settlements: produce, eat, breed, build
@@ -3908,11 +4056,27 @@ function tickDay(day){
       chron('fate', T.hungerDeaths(s, Math.round(s.hungerDead)), s.x, s.z, 7);
       s.hungerDead = 0;
     }
+    // the town's institutions: saloons stir, churches settle, banks fill, jails hold
+    let nSal = 0, nChu = 0, nBank = 0, nJail = 0;
+    for(const b of s.buildings){
+      if(b.state) continue;   // a burning building renders no services
+      if(b.t===ARCH.SALOON) nSal++;
+      else if(b.t===ARCH.CHURCH) nChu++;
+      else if(b.t===ARCH.BANK) nBank++;
+      else if(b.t===ARCH.JAIL) nJail++;
+    }
+    s.nSaloon = nSal; s.nChurch = nChu; s.hasBank = nBank > 0; s.hasJail = nJail > 0;
+    const salE = Math.min(nSal, 3), chuE = Math.min(nChu, 2);
+    const wetTown = s.stores.whiskey > 0.5;
     // prosperity & unrest drift
     const fed = 1 - s.hunger;
-    s.prosperity = clamp(s.prosperity + (s.tradeAct*0.004 + fed*0.003 - 0.0045), 0.05, 1);
+    s.prosperity = clamp(s.prosperity + (s.tradeAct*0.004 + fed*0.003 - 0.0045 + (wetTown ? salE*0.0007 : 0)), 0.05, 1);
     s.tradeAct = Math.max(0, s.tradeAct - 0.05);
-    s.unrest = clamp(s.unrest + s.hunger*0.5 - 0.06, 0, 100);
+    s.unrest = clamp(s.unrest + s.hunger*0.5 - 0.06 + salE*(wetTown ? 0.04 : 0.02) - chuE*0.08 - (s.hasJail ? 0.05 : 0), 0, 100);
+    // the bank's vault fills with the town's good fortune — and empties without a bank
+    if(s.hasBank) s.vault = Math.min((s.vault||0) + s.prosperity*s.pop*0.0005, 4000);
+    else s.vault = Math.max(0, (s.vault||0) - 8);
+    if(s.vault > 0) W.treasury += s.vault*0.0004;   // deposits earn the county its cut
     // growth & decay: the railroad giveth and the railroad passeth by
     const cap = capacityOf(s);
     if(s.bypassed && chance(R, 0.004)){
@@ -3926,6 +4090,19 @@ function tickDay(day){
       }
     } else if(s.pop < cap*0.5 && s.buildings.length > 8 && chance(R, 0.05)){
       if(removeBuildingFrom(s) && chance(R,0.25)) chron('flavor', T.decay(s));
+    }
+    // a town that outgrows its plat files for improvements (staggered, roughly monthly)
+    if(!s.ranch && day % 31 === si % 31 && s.hunger < 0.4){
+      let want = null;
+      if(s.pop > 350 && !s.nChurch) want = ARCH.CHURCH;
+      else if(s.pop > 480 && !s.hasJail) want = ARCH.JAIL;
+      else if(s.pop > 550 && !s.buildings.some(b => b.t===ARCH.HOTEL)) want = ARCH.HOTEL;
+      else if(s.pop > 650 && !s.hasBank) want = ARCH.BANK;
+      else if(s.prosperity > 0.65 && (s.nSaloon||0) < Math.min(Math.floor(s.pop/400), 4)) want = ARCH.SALOON;
+      if(want !== null && addCivicTo(s, want)){
+        const news = CIVIC_NEWS[want];
+        if(news) chron(news.cls, news.txt(s), s.x, s.z, 5);
+      }
     }
   });
   migrate(day);
@@ -4032,6 +4209,7 @@ function inspectSettlement(s){
   html += inspRow('Souls', Math.round(s.pop).toLocaleString());
   html += inspRow('Prosperity', Math.round(s.prosperity*100) + '%');
   html += inspRow('Lawlessness', Math.round(s.unrest));
+  if(s.vault > 0) html += inspRow('Bank vault', money(Math.round(s.vault)));
   html += inspRow('Bread', Math.round(daysOfFood(s)) + ' days');
   if(s.herd > 0) html += inspRow('Herd', Math.round(s.herd).toLocaleString() + ' head');
   html += '<div class="sect">Stores &amp; prices</div>';
@@ -4045,7 +4223,11 @@ function inspectBuilding(s, b){
   let html = '<h3>' + (ARCH_LABEL[b.t]||'Building') + '</h3><div class="sub">' + s.name +
     ' · ' + (b.tier===1?'rough-built':b.tier===2?'frame':'brick & stone') + '</div>';
   if(b.state === 'burning') html += inspRow('State', 'ON FIRE');
-  html += inspRow('Households', b.t===ARCH.HOUSE ? Math.max(1, Math.round(b.sc*2)) : '—');
+  if(b.t===ARCH.HOUSE) html += inspRow('Households', Math.max(1, Math.round(b.sc*2)));
+  else if(b.t===ARCH.SALOON) html += inspRow('The bar', s.stores.whiskey > 0.5 ? 'wet — trade brisk, tempers loose' : 'dry — and the town knows it');
+  else if(b.t===ARCH.BANK) html += inspRow('Deposits', money(Math.round(s.vault||0)));
+  else if(b.t===ARCH.CHURCH) html += inspRow('The pews', 'a settling influence');
+  else if(b.t===ARCH.JAIL) html += inspRow('The cells', 'a standing argument for good behavior');
   showInspector(html);
 }
 function inspectAgent(a){
@@ -4312,7 +4494,10 @@ function tickPolitics(day){
     if(o.kind==='cattle' && seatS) o.herd = seatS.herd;
   });
   // order drifts toward the middle
-  W.order += (50 - W.order) * 0.002;
+  // every county jail raises where the law settles
+  let jailTowns = 0;
+  W.settlements.forEach(s2 => { if(!s2.ghost && s2.hasJail) jailTowns++; });
+  W.order += (50 + 3*Math.min(jailTowns, 4) - W.order) * 0.002;
   if(gov && gov.traits.includes('just')) W.order += 0.01;
   if(gov && gov.traits.includes('drunkard')) W.order -= 0.012;
   W.order = clamp(W.order, 0, 100);
@@ -4989,9 +5174,14 @@ function tickFires(day){
       if(s && chance(R, 0.35)) igniteFire(s, 'a lightning strike', day);
     } else startPrairieFire(rr(R,-2400,2400), rr(R,-2400,2400), day, true);
   }
-  // drunken stoves
+  // drunken stoves — the odds favor the towns with the most saloons
   if(chance(R, 0.0011 * W.rates.disaster * (W.drought ? 2 : 1))){
-    const s = pickH(S.filter(s2=>!s2.ghost && s2.kind!=='hamlet'));
+    const cand = S.filter(s2=>!s2.ghost && s2.kind!=='hamlet');
+    const fw = c => 1 + 0.6*Math.min(c.nSaloon||0, 3);
+    let tot = 0;
+    for(const c of cand) tot += fw(c);
+    let roll = R()*tot, s = cand[0];
+    for(const c of cand){ roll -= fw(c); if(roll <= 0){ s = c; break; } }
     if(s) igniteFire(s, pickH(['a knocked lamp at the saloon','a stovepipe left to its own devices','a smith’s spark on a windy day']), day);
   }
   // town fires spread building to building
@@ -5150,7 +5340,8 @@ function tickCholera(day){
     s.pop = Math.max(2, s.pop - dead);
     s.cholDead += dead;
     s.sus = Math.max(0, s.sus - s.infected * 0.012);
-    s.infected *= (0.965 + s.sus * 0.03);
+    // a church organizes nursing and burials; the sickness moves on sooner
+    s.infected *= (0.965 + s.sus * 0.03 - 0.005*Math.min(s.nChurch||0, 2));
     s.unrest = Math.min(100, s.unrest + s.infected * 0.6);
     if(s.infected < 0.004){
       s.infected = 0;
@@ -5265,12 +5456,20 @@ function tickRustlers(day){
     }
     if(camp.posseDay && day >= camp.posseDay){
       camp.posseDay = 0;
-      const lawP = 0.62 + W.order*0.002 - camp.strength*0.002;
+      // a jail in the nearest town means the posse rides better organized
+      let nearS = null, nearD = 1e18;
+      W.settlements.forEach(s2 => { const d = dist2d(camp.x,camp.z,s2.x,s2.z); if(d < nearD){ nearD = d; nearS = s2; } });
+      const lawP = 0.62 + W.order*0.002 - camp.strength*0.002 + (nearS && nearS.hasJail ? 0.06 : 0);
       if(chance(R, clamp(lawP, 0.25, 0.85))){
         const bossN = camp.boss ? notable(camp.boss) : null;
         if(bossN){
-          if(chance(R, 0.5)){ killNotable(bossN, 'gunfight', day); }
-          else { bossN.role = null; chron('law', 'TAKEN ALIVE. — ' + nName(bossN) + ' will answer to the district court, which is more than his men can say.', camp.x, camp.z, 6); bossN.jailed = true; }
+          // with a county jail standing, the law would rather have him breathing
+          if(chance(R, W.settlements[0].hasJail ? 0.35 : 0.5)){ killNotable(bossN, 'gunfight', day); }
+          else {
+            bossN.role = null; bossN.jailed = true;
+            (W.trials = W.trials || []).push({ id: bossN.id, day: day + ri(R, 20, 50), si: 0 });
+            chron('law', 'TAKEN ALIVE. — ' + nName(bossN) + ' will answer to the district court, which is more than his men can say.', camp.x, camp.z, 6);
+          }
         }
         chron('law', 'THE CAMP CLEARED. — The sheriff’s men came back with spare horses and short answers. The road is open.', camp.x, camp.z, 6);
         W.order = Math.min(100, W.order + 5);
@@ -5345,11 +5544,14 @@ function rouseGang(day){
   const g = W.gang;
   if(!g || g.state !== 'dormant') return false;
   g.state = 'riding';
+  // the fattest vault in the county, or failing that the county treasury
   g.target = 0;
+  let tv = 300;
+  W.settlements.forEach((s2, i) => { if(!s2.ghost && (s2.vault||0) > tv){ tv = s2.vault; g.target = i; } });
   g.rideStart = day;
   g.rideFrom = {x: g.x, z: g.z};
-  const S0 = W.settlements[0];
-  g.rideDist = dist2d(g.x, g.z, S0.x, S0.z);
+  const tgt = W.settlements[g.target];
+  g.rideDist = dist2d(g.x, g.z, tgt.x, tgt.z);
   if(!g.mesh){
     g.mesh = new THREE.Mesh(TPL.posse, MAT.world);
     g.mesh.castShadow = true;
@@ -5385,15 +5587,17 @@ function tickGang(day){
   if(!leader || !leader.alive){ g.state = 'dead'; if(g.mesh) g.mesh.visible = false; return; }
   if(g.state === 'dormant'){
     if(day < g.dormantUntil) return;
-    // gold breeds attention
-    const bait = Math.max(0, W.treasury - 2600) + (W.rail && W.rail.done ? 1500 : 0);
+    // gold breeds attention — in the treasury and in the vaults
+    let vaults = 0;
+    W.settlements.forEach(s2 => { if(!s2.ghost) vaults += s2.vault||0; });
+    const bait = Math.max(0, W.treasury - 2600) + vaults*0.8 + (W.rail && W.rail.done ? 1500 : 0);
     if(chance(R, clamp(bait/9000, 0, 0.55) * 0.004 * fateMult(day))) rouseGang(day);
     return;
   }
-  const S0 = W.settlements[0];
+  const tgtS = W.settlements[g.target||0] || W.settlements[0];
   if(g.state === 'riding' || g.state === 'homing'){
-    const toX = g.state==='riding' ? S0.x : g.x;
-    const toZ = g.state==='riding' ? S0.z : g.z;
+    const toX = g.state==='riding' ? tgtS.x : g.x;
+    const toZ = g.state==='riding' ? tgtS.z : g.z;
     const prog = clamp((day - g.rideStart) * 850 / Math.max(1, g.rideDist), 0, 1);
     const fx = lerp(g.rideFrom.x, toX, prog), fz = lerp(g.rideFrom.z, toZ, prog);
     if(g.mesh){
@@ -5415,29 +5619,45 @@ function tickGang(day){
 }
 function gangRobs(day){
   const g = W.gang, R = W.rng.hist;
-  const S0 = W.settlements[0];
+  const S = W.settlements, S0 = S[0];
+  const tgt = S[g.target||0] || S0;
   const leader = notable(g.leader);
   // the train, if it runs, is the richer target
-  const take = Math.round(Math.min(W.treasury, Math.max(300, W.treasury * rr(R, 0.2, 0.35))));
-  W.treasury -= take;
+  const train = W.rail && W.rail.done && chance(R, 0.55);
+  let take;
+  if(train){
+    take = Math.round(Math.min(W.treasury, Math.max(300, W.treasury * rr(R, 0.2, 0.35))));
+    W.treasury -= take;
+  } else if((tgt.vault||0) > 60){
+    // the vault takes the loss; the county's cut too, if this is the seat
+    take = Math.round(tgt.vault * rr(R, 0.6, 0.9));
+    tgt.vault -= take;
+    if(tgt === S0){
+      const tt = Math.round(Math.max(0, W.treasury) * rr(R, 0.1, 0.2));
+      W.treasury -= tt; take += tt;
+    }
+  } else {
+    take = Math.round(Math.min(W.treasury, Math.max(300, W.treasury * rr(R, 0.2, 0.35))));
+    W.treasury -= take;
+  }
   g.loot += take;
   leader.bounty = (leader.bounty||1000) + Math.round(take*0.3);
   leader.wanted = leader.wanted || makeWantedPoster(leader);
-  S0.unrest = Math.min(100, S0.unrest + 10);
+  tgt.unrest = Math.min(100, tgt.unrest + 10);
   W.order = Math.max(0, W.order - 8);
-  W.lastDeathSpot = {x: S0.x, z: S0.z};
-  if(W.rail && W.rail.done && chance(R, 0.55)){
+  W.lastDeathSpot = {x: tgt.x, z: tgt.z};
+  if(train){
     railPointAt(W.rail.dist * rr(R, 0.25, 0.75), _rp);
     W.lastDeathSpot = {x: _rp.x, z: _rp.z};
     chron('law', 'THE TRAIN ROBBED. — ' + gangLine() + ' put a tie across the rails at dusk, emptied the express car of ' + money(take) + ', and thanked the passengers for their patience. The company is offering its own reward, in addition to everyone else’s.', _rp.x, _rp.z, 10);
   } else {
-    chron('law', 'THE BANK ROBBED IN OPEN DAY. — ' + gangLine() + ' came up the street at a walk, dynamited the vault, and left at a gallop with ' + money(take) + '. One teller fainted; the clock was shot in passing.', S0.x, S0.z, 10);
+    chron('law', 'THE BANK AT ' + tgt.name.toUpperCase() + ' ROBBED IN OPEN DAY. — ' + gangLine() + ' came up Main Street at a walk, dynamited the vault, and left at a gallop with ' + money(take) + '. One teller fainted; the clock was shot in passing.', tgt.x, tgt.z, 10);
   }
   // the ride home
   g.state = 'homing';
   g.rideStart = day;
-  g.rideFrom = {x: S0.x, z: S0.z};
-  g.rideDist = dist2d(g.x, g.z, S0.x, S0.z);
+  g.rideFrom = {x: tgt.x, z: tgt.z};
+  g.rideDist = dist2d(g.x, g.z, tgt.x, tgt.z);
   // the law answers according to its nerve
   const marshal = officialOf('marshal') || officialOf('sheriff');
   const gov = notable(W.gov);
@@ -5458,7 +5678,7 @@ function tickGangShowdown(day){
   const g = W.gang, R = W.rng.hist;
   const marshal = officialOf('marshal') || officialOf('sheriff');
   const leader = notable(g.leader);
-  const winP = clamp(0.45 + W.order*0.003 - (g.legend ? 0.12 : 0), 0.25, 0.8);
+  const winP = clamp(0.45 + W.order*0.003 - (g.legend ? 0.12 : 0) + (W.settlements[0].hasJail ? 0.04 : 0), 0.25, 0.8);
   if(chance(R, winP)){
     const back = Math.round(g.loot * 0.6);
     W.treasury += back;
@@ -5476,6 +5696,35 @@ function tickGangShowdown(day){
     g.legend = true;
     W.order = Math.max(0, W.order - 10);
     chron('law', 'DISASTER IN THE BREAKS. — The posse was ambushed in a dry wash. ' + gangLine() + ' rides taller than ever, and the county prints its poster larger.', g.x, g.z, 9);
+  }
+}
+// the district court sits when it has someone to sit over
+function tickTrials(day){
+  if(!W.trials || !W.trials.length) return;
+  const R = W.rng.hist;
+  for(let i=W.trials.length-1; i>=0; i--){
+    const tr = W.trials[i];
+    if(day < tr.day) continue;
+    W.trials.splice(i, 1);
+    const n = notable(tr.id);
+    if(!n || !n.alive || !n.jailed) continue;
+    const s = W.settlements[tr.si] || W.settlements[0];
+    const conv = clamp(0.35 + W.order*0.005 + (s.hasJail ? 0.08 : 0), 0.2, 0.9);
+    if(chance(R, conv)){
+      if(chance(R, 0.55)){
+        killNotable(n, 'hanged', day);
+        W.order = Math.min(100, W.order + 6);
+        chron('law', 'THE COURT IS SATISFIED. — ' + nName(n) + ' was tried, convicted, and hanged at ' + s.name + '. The proceedings were brief and the crowd was large.', s.x, s.z, 8);
+      } else {
+        W.order = Math.min(100, W.order + 3);
+        chron('law', 'TWENTY YEARS. — ' + nName(n) + ' goes to the territorial prison, protesting his innocence to a wagon that has heard it before.', s.x, s.z, 6);
+      }
+    } else {
+      n.jailed = false;
+      s.unrest = Math.min(100, s.unrest + 6);
+      W.order = Math.max(0, W.order - 5);
+      chron('law', 'OUT THROUGH THE ROOF. — ' + nName(n) + ' did not wait for the verdict. The jailer has resigned; the county is printing new posters.', s.x, s.z, 8);
+    }
   }
 }
 // ---------- gold strikes, boomtowns, ghost towns ----------
@@ -5505,7 +5754,8 @@ function tickStrikes(day){
         s.name = s.name.replace(/ (Gulch|Creek|Springs|Flats|Mesa|Bend|Crossing|Wells|Ridge|Fork|Hollow|Bluff|Gap|Butte|Draw|Sink|Camp)$/, '') + pickH([' Camp',' Gulch',' Diggings']);
         if(s.lblIdx !== undefined && W.labels[s.lblIdx]) W.labels[s.lblIdx].el.textContent = s.name;
         s.buildings.forEach(b => { if(b.t === ARCH.HOUSE && chance(R,0.6)){ b.t = ARCH.TENT; b.tier = 1; } });
-        s.buildings.push({t:ARCH.HEADFRAME, x:s.x+14, z:s.z-10, ry:rr(R,0,6.28), tier:2, sc:1});
+        const hf = findClearSpot(s, s.x+14, s.z-10, 4.2, 7);
+        s.buildings.push({t:ARCH.HEADFRAME, x:hf.x, z:hf.z, ry:rr(R,0,6.28), tier:2, sc:1});
         queueRebuild(s);
         W.rush = { target: W.settlements.indexOf(s), until: day + 140 };
         s.unrest = 40;
@@ -5667,7 +5917,8 @@ function runFateActAt(name, p, day){
         sNew.mining = true;
         sNew.strike = { richness: rr(W.rng.hist, 1.8, 3), foundDay: day2 };
         sNew.geo.ore = 2.4;
-        sNew.buildings.push({t:ARCH.HEADFRAME, x:sNew.x+14, z:sNew.z-10, ry:rr(W.rng.hist,0,6.28), tier:2, sc:1});
+        const hf = findClearSpot(sNew, sNew.x+14, sNew.z-10, 4.2, 7);
+        sNew.buildings.push({t:ARCH.HEADFRAME, x:hf.x, z:hf.z, ry:rr(W.rng.hist,0,6.28), tier:2, sc:1});
         sNew.buildings.forEach(b => { if(b.t === ARCH.HOUSE && chance(W.rng.hist,0.6)){ b.t = ARCH.TENT; b.tier = 1; } });
         queueRebuild(sNew);
         W.rush = { target: W.settlements.indexOf(sNew), until: day2 + 140 };
@@ -5896,11 +6147,30 @@ function tickRail(day){
       st.opened = true;
       const s = S[st.si];
       s.rail = true;
-      railPointAt(st.atM, _rp);
-      const a = Math.atan2(s.z - _rp.z, s.x - _rp.x);
-      const dx = _rp.x + Math.cos(a)*26, dz = _rp.z + Math.sin(a)*26;
-      s.buildings.push({t:ARCH.DEPOT, x:dx, z:dz, ry: Math.atan2(_rp.x-dx, _rp.z-dz) + Math.PI/2, tier:2, sc:1});
-      s.buildings.push({t:ARCH.WATERTOWER, x:dx + Math.cos(a+1.2)*22, z:dz + Math.sin(a+1.2)*22, ry:0, tier:2, sc:1});
+      // the depot hugs the rail; slide along the track to a spot clear of streets
+      let dx, dz, da, drx, drz;
+      for(const dM of [0, 18, -18, 36, -36]){
+        railPointAt(Math.max(0, Math.min(r.dist, st.atM + dM)), _rp);
+        const a = Math.atan2(s.z - _rp.z, s.x - _rp.x);
+        const cx = _rp.x + Math.cos(a)*26, cz = _rp.z + Math.sin(a)*26;
+        if(dM === 0){ dx = cx; dz = cz; da = a; drx = _rp.x; drz = _rp.z; }   // fallback
+        if(!roadClear(s, cx, cz, 6.5)) continue;
+        let ok = true;
+        for(const b of s.buildings){ if(dist2d(cx,cz,b.x,b.z) < 9){ ok=false; break; } }
+        if(!ok) continue;
+        dx = cx; dz = cz; da = a; drx = _rp.x; drz = _rp.z;
+        break;
+      }
+      s.buildings.push({t:ARCH.DEPOT, x:dx, z:dz, ry: Math.atan2(drx-dx, drz-dz) + Math.PI/2, tier:2, sc:1});
+      let wx = dx + Math.cos(da+1.2)*22, wz = dz + Math.sin(da+1.2)*22;
+      for(const wa of [da+1.2, da-1.2, da+2.4]){
+        const cx = dx + Math.cos(wa)*22, cz = dz + Math.sin(wa)*22;
+        if(!roadClear(s, cx, cz, 2.2)) continue;
+        let ok = true;
+        for(const b of s.buildings){ if(dist2d(cx,cz,b.x,b.z) < 6){ ok=false; break; } }
+        if(ok){ wx = cx; wz = cz; break; }
+      }
+      s.buildings.push({t:ARCH.WATERTOWER, x:wx, z:wz, ry:0, tier:2, sc:1});
       queueRebuild(s);
       chron('rail', 'THE CARS AT ' + s.name.toUpperCase() + '. — The first work train whistled in this morning. Dogs, children, and several town fathers raced it up the last mile.', s.x, s.z, 8);
       // a ghost near the line stirs
