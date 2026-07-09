@@ -96,10 +96,14 @@ body.aiming #app canvas{ cursor:crosshair; }
   background:transparent; border:0; border-right:1px solid var(--rule); color:var(--ink2); padding:6px 0; cursor:pointer; }
 #gzTools button:last-child{ border-right:0; }
 #gzTools button:hover{ color:var(--ink); background:rgba(90,74,54,0.08); }
-#ghIcon{ position:absolute; right:14px; top:50%; transform:translateY(-50%); display:flex; align-items:center;
-  color:var(--ink); opacity:0.9; z-index:11; }
+#topActions{ position:absolute; right:14px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:12px; z-index:11; }
+#ghIcon{ display:flex; align-items:center; color:var(--ink); opacity:0.9; }
 #ghIcon:hover{ opacity:1; color:var(--rust); }
-#hudR{ padding-right:38px; }
+#shareBtn{ display:flex; align-items:center; padding:0; margin:0; background:transparent; border:0;
+  color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
+#shareBtn:hover{ opacity:1; color:var(--rust); }
+#shareBtn.copied{ opacity:1; color:var(--rust); }
+#hudR{ padding-right:72px; }
 #loadGh{ margin-top:16px; font-size:11px; font-style:italic; }
 #loadGh a{ color:var(--ink2); }
 #graphsBox{ flex:1; display:none; padding:6px; } #graphsCv{ width:100%; height:100%; }
@@ -237,9 +241,14 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
     <div class="hudline"><span id="govChip"><img alt=""><b id="govName">—</b></span></div>
     <div class="hudline"><span>Bank <b id="bankTxt">$0</b></span><span>Souls <b id="popTxt">0</b></span></div>
   </div>
-  <a id="ghIcon" href="https://github.com/pbzona/wild-wild-web" target="_blank" rel="noopener" title="Source on GitHub — pbzona/wild-wild-web">
-    <svg viewBox="0 0 16 16" width="24" height="24" aria-label="GitHub"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-  </a>
+  <div id="topActions">
+    <button id="shareBtn" type="button" title="Copy a link to this world">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share this world"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+    <a id="ghIcon" href="https://github.com/pbzona/wild-wild-web" target="_blank" rel="noopener" title="Source on GitHub — pbzona/wild-wild-web">
+      <svg viewBox="0 0 16 16" width="24" height="24" aria-label="GitHub"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </div>
 </div>
 <div id="warStrip"></div>
 
@@ -7086,6 +7095,15 @@ function initUI(){
     if(navigator.clipboard) navigator.clipboard.writeText(url);
     document.getElementById('btnLink').textContent = 'Link copied';
     setTimeout(()=> document.getElementById('btnLink').textContent = 'Copy share link', 1400);
+  });
+  document.getElementById('shareBtn').addEventListener('click', ()=>{
+    const btn = document.getElementById('shareBtn');
+    const url = location.origin + location.pathname + '#s=' + encodeURIComponent(W.seed);
+    if(navigator.clipboard) navigator.clipboard.writeText(url);
+    btn.classList.add('copied');
+    btn.title = 'Link copied to clipboard';
+    clearTimeout(btn._t);
+    btn._t = setTimeout(()=>{ btn.classList.remove('copied'); btn.title = 'Copy a link to this world'; }, 1400);
   });
   document.getElementById('btnLabels').addEventListener('click', ()=> labelsOn = !labelsOn);
   document.getElementById('btnWatch').addEventListener('click', ()=> setWatch(!watchMode));
