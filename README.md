@@ -1,5 +1,7 @@
 # The Gazette — a living frontier in a single file
 
+![A river town at dusk in The Gazette](img/screenshot.jpg)
+
 > **Credit:** this is a Wild West re-imagining of [ANNALS — a living kingdom in a single file](https://github.com/emollick/annals-kingdom) by **Ethan Mollick**. The architecture and the "watch a history write itself" idea are his; this project converts that fantasy kingdom into a frontier territory.
 
 A procedurally generated Wild West territory that lives on its own — harvests and cattle drives, elections and range wars, cholera and prairie fires, gold rushes that boom into tent camps and bust into ghost towns, one legendary outlaw gang with its eye on the bank, and, when the territory has proven itself, the railroad — while its newspaper writes itself in the margin. Watch it like a nature documentary, or reach in and turn the dials of fate.

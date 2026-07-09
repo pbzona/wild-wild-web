@@ -34,7 +34,7 @@ Runs once per seed, in order, with a brief "surveying the territory" progress li
 5. **Trails.** A* over a cost field (slope² penalty, water-crossing penalty that spawns bridges and fords, forest penalty) connecting all settlements. Trails are the circulatory system — freight, posses, cholera, and road agents all use them.
 6. **Main Street & lots.** The widest entering trail becomes Main Street through the town center; 1–2 cross streets and back lanes. Lots pack along streets; the commercial strip (saloon, general store, bank, hotel, blacksmith) fronts Main; church and courthouse anchor a cross axis; houses fill behind. Hamlets are a crossroads, a well, a windmill, and a cluster. **Clearance rule:** no building body may sit within `street_width/2 + body_half_extent` of any street or rendered-trail centerline (`roadClear`/`ARCH_HALF`); every placement path — worldgen lots, civic anchors (which nudge along a deterministic candidate ring if their spot is blocked), growth, depots, headframes, forts, mills — enforces it. Ranch dooryards are exempt (the lane runs to the door). Porches and balconies may overhang the boardwalk; that is period-correct.
 7. **Buildings.** ~800–1,200 at year one (growing with the decades) from ~19 archetypes × 3 tiers (tent/dugout → false-front timber → brick/stone): house, saloon, general store, church, blacksmith/livery, bank, jail, hotel, grist mill (animated wheel on watercourses), grain elevator, warehouse, courthouse, stockade wall/gate, and era-spawned: train depot, water tower, mine headframe, windmill (animated fan). False fronts with painted signs, boardwalks, hitching posts, water barrels.
-8. **Names & brands.** Place names from western banks (Dry/Silver/Coyote/Rattlesnake/Alkali + Gulch/Creek/Springs/Flats/Mesa/Bend/Crossing), with a Spanish-flavored bank stronger on badlands seeds. People from period given-name banks. Outfits take a **cattle brand**: modifier (Bar/Rocker/Lazy/Flying/Circle/Double/Slash) + core glyph (letter, digit, diamond, star, horseshoe, spur…), named from its composition — "Lazy J Bar", "Flying W" — rendered to a canvas atlas and used on range overlays, panel chips, ranch signs, and posse guidons.
+8. **Names & brands.** Place names from western banks (Dry/Silver/Coyote/Rattlesnake/Alkali + Gulch/Creek/Springs/Flats/Mesa/Bend/Crossing), with a Spanish-flavored bank stronger on badlands seeds. People from period given-name banks. Outfits take a **cattle brand**: modifier (Bar/Rocker/Lazy/Flying/Circle/Double/Slash) + core glyph (letter, digit, diamond, star, horseshoe, spur…), named from its composition — "Lazy J Bar", "Flying W" — rendered to a canvas atlas and used on turf overlays, panel chips, ranch signs, and posse guidons.
 9. **The cast.** Territorial governor + county officials (sheriff, marshal, judge, preacher, doctor, newspaper editor) + 4–5 outfits (cattle-baron families, a mining magnate, a merchant/banking family), each holding a range and a seat. ~100–140 living notables at any time.
 
 ## 4. Rendering, LOD & visual style
@@ -94,7 +94,7 @@ Legibility over realism. Seven goods: **grain, cattle, timber, ore, tools, whisk
 - **Trials:** an outlaw boss taken alive goes on the district-court docket (20–50 days out). Verdict weighs Order: hanged (Order +6), prison (+3), or out through the roof (Order −5, seat lawlessness +6) — each a Gazette headline.
 - **Outfit standing (0–100 each):** drifts with taxes, water/grazing rights, shared range wars, marriages and business partnerships, slights and grudges.
 - Lawlessness per settlement from hunger, taxes, feuds, cholera, gold rushes → saloon riots (small fires, trade pause) → a settlement flips to outfit control at extremes.
-- **Range war trigger:** standing <30 on an outfit with muscle + a spark (disputed election, fence-cutting, a murdered kin, drought over waterholes, the "Contest the election" button). Outfits declare by standing, marriage, and grudge. The Ranges overlay animates as brands change.
+- **Range war trigger:** standing <30 on an outfit with muscle + a spark (disputed election, fence-cutting, a murdered kin, drought over waterholes, the "Contest the election" button). Outfits declare by standing, marriage, and grudge. The Turf overlay animates as brands change.
 
 ## 10. Range wars
 
@@ -127,7 +127,7 @@ A scrolling newsprint panel printing dated entries in frontier-editor voice via 
 
 - Every entry is clickable → the camera flies to the spot (or to the ruin, boot hill, or ghost town that remains).
 - Era headers divide the scroll: "THE GOVERNORSHIP OF ABEL CRANE, BEGUN 1871."
-- Filter chips (Law / Range / Trade / Fates). Export saves the full archive as .txt — a shareable artifact of the run.
+- Filter chips (Law / Frontier / Trade / Fates). Export saves the full archive as .txt — a shareable artifact of the run.
 - Fully local, no API.
 
 ## 13. The auto-director
@@ -170,7 +170,7 @@ No per-citizen simulation beyond bubble ambience. No Native American representat
 |---|---|---|
 | 1 — The Territory | Gen pipeline, terrain/water/sky, trails & bridges, buildings + LOD, camera, day/night, seasons, seed URL | Fly from 3 km to a saloon porch at 60 fps; two seeds feel like different territories |
 | 2 — The Trail | Clock & speeds, economy, freighters/stages/steamboats, cattle drives, population, growth/decay, HUD, inspector, Gazette v1, Rates | 10 min at ▶▶▶: visible growth, ≥15 entries, a drive completes, no runaway values |
-| 3 — The Law | Notables, outfits & brands, Order/standing/lawlessness, elections, range wars, posses/gunfights/standoffs, Ranges overlay, political Acts | "Contest the election" → war within a sim-year, visible rides, a peace, a coherent arc |
+| 3 — The Law | Notables, outfits & brands, Order/standing/lawlessness, elections, range wars, posses/gunfights/standoffs, Turf overlay, political Acts | "Contest the election" → war within a sim-year, visible rides, a peace, a coherent arc |
 | 4 — The Fates | Disaster suite, rustlers, gang & Tall Tales, gold strikes & ghost towns, omens, auto-director + Watch mode, remaining Acts/overlays, perf pass | The five-minute test (pre-rail) |
 | 5 — The Iron Horse | Railroad charter, visible construction, depots, boom/bypass, trains & robberies, drive retargeting | 200-year run: line completes visibly; a town booms, a town fades, a train is robbed |
 
