@@ -47,14 +47,16 @@ body.aiming #app canvas{ cursor:crosshair; }
 #hudL, #hudR{ flex:1 1 0; }
 #hudC{ flex:0 1 auto; max-width:46%; }
 #hudL{ align-items:flex-start; } #hudR{ align-items:flex-end; }
-.hudline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); }
+.hudline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); height:19px; overflow:hidden; }
 .hudline b{ font-weight:700; }
-#seasonGlyph{ font-size:13px; } #weatherIco{ font-size:13px; }
+#dateTxt{ font-variant-numeric:tabular-nums; }
+/* emoji glyphs get taller line boxes and ragged widths: pin them down */
+#seasonGlyph, #weatherIco{ display:inline-block; width:17px; text-align:center; font-size:13px; line-height:19px; }
 #govChip{ display:inline-flex; align-items:center; gap:5px; cursor:pointer; border-bottom:1px dotted var(--rule); }
 #govChip img{ width:16px; height:16px; image-rendering:pixelated; }
-#speeds{ display:flex; gap:2px; margin-top:2px; }
-#speeds button{ font-family:var(--sans); font-size:10px; width:26px; height:19px; border:1px solid var(--rule);
-  background:var(--paper2); color:var(--ink); cursor:pointer; padding:0; }
+#speeds{ display:flex; flex-wrap:wrap; gap:2px; margin-top:2px; }
+#speeds button{ font-family:var(--sans); font-size:9px; width:auto; min-width:24px; height:19px; border:1px solid var(--rule);
+  background:var(--paper2); color:var(--ink); cursor:pointer; padding:0 4px; letter-spacing:-1px; white-space:nowrap; }
 #speeds button.on{ background:var(--ink); color:var(--paper); }
 #warStrip{ position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:9; display:none;
   background:rgba(43,35,32,0.92); color:#e8dcc0; border:1px solid #6e5344; padding:4px 14px; font-size:12px;
@@ -94,6 +96,11 @@ body.aiming #app canvas{ cursor:crosshair; }
   background:transparent; border:0; border-right:1px solid var(--rule); color:var(--ink2); padding:6px 0; cursor:pointer; }
 #gzTools button:last-child{ border-right:0; }
 #gzTools button:hover{ color:var(--ink); background:rgba(90,74,54,0.08); }
+#gzTools a{ flex:0 0 auto; display:flex; align-items:center; padding:0 10px; font-family:var(--sans); font-size:10px;
+  letter-spacing:0.06em; text-transform:uppercase; color:var(--ink2); text-decoration:none; }
+#gzTools a:hover{ color:var(--ink); background:rgba(90,74,54,0.08); }
+#loadGh{ margin-top:16px; font-size:11px; font-style:italic; }
+#loadGh a{ color:var(--ink2); }
 #graphsBox{ flex:1; display:none; padding:6px; } #graphsCv{ width:100%; height:100%; }
 
 /* ---------- drawer (left) ---------- */
@@ -217,8 +224,8 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   <div class="col" id="hudL">
     <div class="hudline"><span id="seasonGlyph">☀</span><b id="dateTxt">—</b><span id="weatherIco"></span></div>
     <div id="speeds">
-      <button data-s="0">⏸</button><button data-s="1">·</button><button data-s="2" class="on">▶</button>
-      <button data-s="3">▶▶</button><button data-s="4">▶▶▶</button><button data-s="5">▶▶▶▶</button>
+      <button data-s="0" title="Pause (space)">⏸</button><button data-s="1" title="Crawl — a day every ten seconds (1)">·</button><button data-s="2" class="on" title="One day per second (2)">▶</button>
+      <button data-s="3" title="Five days per second (3)">▶▶</button><button data-s="4" title="Thirty days per second (4)">▶▶▶</button><button data-s="5" title="Full gallop — 120 days per second (5)">▶▶▶▶</button>
     </div>
   </div>
   <div class="col" id="hudC">
@@ -246,6 +253,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   <div id="gzTools">
     <button id="btnCharts">Ledgers</button>
     <button id="btnExport">Export archive</button>
+    <a href="https://github.com/pbzona/wild-wild-web" target="_blank" rel="noopener" title="Source on GitHub">⧉</a>
   </div>
 </div>
 
@@ -298,6 +306,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
     <div id="loadSub">A LIVING FRONTIER IN A SINGLE FILE</div>
     <div class="rule"></div>
     <div id="steps"></div>
+    <div id="loadGh"><a href="https://github.com/pbzona/wild-wild-web" target="_blank" rel="noopener">github.com/pbzona/wild-wild-web</a></div>
   </div>
 </div>
 
@@ -6582,15 +6591,15 @@ function initInput(){
 // key: [tod, zenith, horizon, sun, fog, hemiSky, hemiGround, sunI, hemiI]
 // the palette runs warmer and dustier than a green country's sky
 const SKYKEY = [
-  [0.000, 0x0b1124, 0x1c2340, 0xbcc9f4, 0x11172b, 0x262f4e, 0x16161f, 0.21, 0.34],
-  [0.205, 0x0b1124, 0x1c2340, 0xbcc9f4, 0x11172b, 0x262f4e, 0x16161f, 0.21, 0.34],
+  [0.000, 0x131c36, 0x2a3452, 0xc4cff4, 0x1a2138, 0x40507a, 0x2a2e40, 0.34, 0.52],
+  [0.205, 0x131c36, 0x2a3452, 0xc4cff4, 0x1a2138, 0x40507a, 0x2a2e40, 0.34, 0.52],
   [0.255, 0x3d4a7d, 0xe59a5a, 0xffb670, 0xb59a7e, 0x6f74a0, 0x4a4033, 0.55, 0.44],
   [0.315, 0x6d99c0, 0xe8e2c2, 0xfff0cd, 0xd9d0ae, 0x9cb4d0, 0x6d6a4c, 1.02, 0.58],
   [0.500, 0x5b8cbd, 0xe0dcc0, 0xfff4d8, 0xd8d2b4, 0xa3bcd4, 0x73704f, 1.06, 0.62],
   [0.655, 0x567aab, 0xeac281, 0xffdda6, 0xd8bf92, 0x93a4bd, 0x6a5f44, 0.95, 0.56],
   [0.735, 0x38416b, 0xdd7f45, 0xff9c60, 0x8f7261, 0x6d6f95, 0x453b2e, 0.45, 0.40],
-  [0.795, 0x0b1124, 0x1c2340, 0xbcc9f4, 0x11172b, 0x262f4e, 0x16161f, 0.21, 0.34],
-  [1.000, 0x0b1124, 0x1c2340, 0xbcc9f4, 0x11172b, 0x262f4e, 0x16161f, 0.21, 0.34]
+  [0.795, 0x131c36, 0x2a3452, 0xc4cff4, 0x1a2138, 0x40507a, 0x2a2e40, 0.34, 0.52],
+  [1.000, 0x131c36, 0x2a3452, 0xc4cff4, 0x1a2138, 0x40507a, 0x2a2e40, 0.34, 0.52]
 ];
 const _K = {zen:{r:0,g:0,b:0}, hor:{r:0,g:0,b:0}, sun:{r:0,g:0,b:0}, fog:{r:0,g:0,b:0}, hemiS:{r:0,g:0,b:0}, hemiG:{r:0,g:0,b:0}, sunI:1, hemiI:0.6};
 function lerpKeys(tod){
