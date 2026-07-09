@@ -138,12 +138,16 @@ body.aiming #app canvas{ cursor:crosshair; }
 .tt3{ display:flex; gap:4px; }
 .tt3 button{ flex:1; font-family:var(--sans); font-size:10px; padding:4px 0; background:var(--paper2); border:1px solid var(--rule); cursor:pointer; color:var(--ink2); }
 .tt3 button.on{ background:var(--ink); color:var(--paper); }
+.hint{ font-size:10.5px; font-style:italic; line-height:1.35; color:var(--ink2); margin:-4px 0 9px; }
 #outfitRows .orow{ display:flex; align-items:center; gap:7px; padding:6px 3px; border-bottom:1px solid rgba(141,127,102,0.35); cursor:pointer; }
 #outfitRows .orow:hover{ background:rgba(139,58,46,0.07); }
 #outfitRows img{ width:30px; height:30px; image-rendering:pixelated; }
 #outfitRows .oinfo{ flex:1; min-width:0; }
 #outfitRows .onm{ font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#outfitRows .obar{ height:4px; background:rgba(43,35,32,0.18); margin-top:3px; }
+#outfitRows .ometa{ font-size:10px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#outfitRows .ocap{ display:flex; justify-content:space-between; font-size:9px; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink2); margin-top:4px; }
+#outfitRows .ocap b{ font-weight:700; color:var(--ink); }
+#outfitRows .obar{ height:4px; background:rgba(43,35,32,0.18); margin-top:2px; }
 #outfitRows .obar i{ display:block; height:100%; background:var(--rust); }
 #outfitRows .exiled{ opacity:0.45; } #outfitRows .exiled .onm{ text-decoration:line-through; }
 .wbtn{ display:block; width:100%; margin-bottom:6px; font-family:var(--serif); font-size:11.5px; padding:6px;
@@ -283,6 +287,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   <div class="dPane" data-t="outfits" id="paneOutfits">
     <div id="govCard"></div>
     <div class="sect">The Outfits</div>
+    <div class="hint">The county&rsquo;s rival powers &mdash; cattle dynasties, a mining company, a merchant house. Each carries a brand, holds a home town, and rises or falls by its <em>standing</em>. Tap one to meet its head.</div>
     <div id="outfitRows"></div>
   </div>
   <div class="dPane" data-t="world">
@@ -4481,6 +4486,14 @@ function inspectNotable(n){
     html += '<div class="wanted"><div class="wt">WANTED</div><img src="' + n.wanted + '">' +
       '<div class="wr">DEAD OR ALIVE<br>' + money(n.bounty||500) + ' REWARD</div></div>';
   }
+  if(o){
+    const kindLabel = o.kind==='cattle' ? 'cattle outfit' : o.kind==='mining' ? 'mining company' : 'merchant house';
+    html += inspRow('Outfit', kindLabel + (o.exiled ? ' (driven out)' : ''));
+    html += inspRow('Brand', o.brand.name);
+    const seat = W.settlements[o.seat];
+    if(seat) html += inspRow('Home town', seat.name);
+    html += inspRow('Standing', Math.round(o.standing) + ' / 100');
+  }
   html += inspRow('Age', Math.round(n.age));
   html += inspRow('Disposition', n.traits.join(', '));
   const sp = notable(n.spouse);
@@ -5042,11 +5055,14 @@ function renderOutfitsPanel(){
     const head = notable(o.head);
     const div = document.createElement('div');
     div.className = 'orow' + (o.exiled ? ' exiled' : '');
-    div.innerHTML = '<img src="' + o.brand.url + '">' +
-      '<div class="oinfo"><div class="onm">' + o.brand.name + ' · ' + o.sur + '</div>' +
-      '<div style="font-size:10px;color:var(--ink2)">' + (o.kind==='cattle' ? Math.round(o.herd||0).toLocaleString()+' head' : o.kind) +
-      ' · ' + money(o.wealth) + '</div>' +
-      '<div class="obar"><i style="width:' + Math.round(o.standing) + '%"></i></div></div>';
+    const kindLabel = o.kind==='cattle' ? Math.round(o.herd||0).toLocaleString() + ' head of cattle'
+      : o.kind==='mining' ? 'mining company' : 'merchant house';
+    const st = Math.round(o.standing);
+    div.innerHTML = '<img src="' + o.brand.url + '" alt="brand">' +
+      '<div class="oinfo"><div class="onm">' + o.brand.name + ' · ' + o.sur + (o.exiled ? ' (driven out)' : '') + '</div>' +
+      '<div class="ometa">' + kindLabel + ' · ' + money(o.wealth) + '</div>' +
+      '<div class="ocap"><span title="How the county regards this outfit (0–100)">Standing</span><b>' + st + '</b></div>' +
+      '<div class="obar"><i style="width:' + st + '%"></i></div></div>';
     div.addEventListener('click', ()=>{ if(head) { inspectNotable(head); flyTo(W.settlements[o.seat].x, W.settlements[o.seat].z, 700); } });
     rows.appendChild(div);
   });
