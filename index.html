@@ -3557,7 +3557,7 @@ function daysOfStock(s, g){
   const st = g==='cattle' ? (s.stores.cattle + s.herd*0.25) : s.stores[g];
   return st / Math.max(0.001, needRate(s,g));
 }
-function daysOfFood(s){ return s.stores.grain / Math.max(0.01, s.pop*0.011); }
+function daysOfFood(s){ return (s.stores.grain + (s.stores.cattle||0)*2) / Math.max(0.01, s.pop*0.011); }
 function priceOf(s, g){
   return G_BASE[g] * clamp(35/(daysOfStock(s,g)+3), 0.3, 4);
 }
@@ -4213,7 +4213,7 @@ function tickDay(day){
       if(s.stores.ore > 1 && s.stores.timber > 1){
         s.stores.ore -= 0.4; s.stores.timber -= 0.35; s.stores.tools += 0.5;
       }
-      if(daysOfFood(s) > 20){ s.stores.grain -= 0.35; s.stores.whiskey += 0.3; }
+      if(s.stores.grain > s.pop*0.22){ s.stores.grain -= 0.35; s.stores.whiskey += 0.3; }
     }
     if(si === 0) s.stores.goods += 0.9;   // the seat imports from the East
     // consumption
@@ -4223,14 +4223,25 @@ function tickDay(day){
       s.hunger = Math.max(0, s.hunger - 0.05);
     } else {
       s.stores.grain = 0;
-      // ranches butcher their way through a shortage
-      if(s.herd > 40){ s.herd -= eat * 0.9; s.hunger = Math.max(0, s.hunger - 0.03); }
-      else s.hunger = Math.min(1, s.hunger + 0.06);
+      let deficit = eat;   // grain-equivalent shortfall for the day
+      // cattle country eats beef: the drives that come in are the larder (1 unit ≈ 2 grain-days)
+      if(s.stores.cattle > 0.2){
+        const useC = Math.min(s.stores.cattle, deficit / 2);
+        s.stores.cattle -= useC;
+        deficit -= useC * 2;
+      }
+      // a ranch butchers its own standing herd for whatever the beef trade didn't cover
+      if(deficit > 0.5 && s.herd > 40){
+        s.herd -= deficit * 0.9;
+        deficit = 0;
+      }
+      if(deficit > 0.5) s.hunger = Math.min(1, s.hunger + 0.06 * (deficit/eat));
+      else s.hunger = Math.max(0, s.hunger - 0.03);
     }
     for(const g of ['tools','whiskey','goods','timber']) s.stores[g] = Math.max(0, s.stores[g] - needRate(s,g)*0.9);
     // spoilage caps
     s.stores.grain = Math.min(s.stores.grain, s.pop*1.2 + 300);
-    for(const g of ['timber','ore','tools','whiskey','goods']) s.stores[g] = Math.min(s.stores[g], 400);
+    for(const g of ['timber','ore','tools','whiskey','goods','cattle']) s.stores[g] = Math.min(s.stores[g], 400);
     // famine reporting & relief (one story per settlement per season or so)
     if(s.hunger > 0.4 && day > (s.famCool||0)){
       s.famCool = day + 280;
@@ -4313,8 +4324,18 @@ function tickDay(day){
   let realmPop = 0; S.forEach(s => realmPop += s.pop);
   W.terrPop = realmPop;
   W.treasury += realmPop * 0.006 * (W.rates.tax/0.12);
-  W.treasury -= 8 + realmPop*0.004 + Math.max(0,W.treasury)*0.0014;
+  W.treasury -= 8 * Math.min(1, realmPop/2000) + realmPop*0.004 + Math.max(0,W.treasury)*0.0014;
   if(W.treasury < -500) W.treasury = -500;
+  // a county that has been broke for a full year gets a grudging federal appropriation
+  if(W.treasury <= -450){ W.brokeSince = (W.brokeSince === undefined) ? day : W.brokeSince; }
+  else W.brokeSince = undefined;
+  if(W.brokeSince !== undefined && day - W.brokeSince >= 360 && day - (W.lastRelief||-1e9) > 1000){
+    W.brokeSince = undefined;
+    W.lastRelief = day;
+    W.treasury = 600;
+    W.order = Math.min(100, W.order + 6);
+    chron('law', 'AN APPROPRIATION. — Washington has noticed the county cannot meet its bills and sent a draft, with a letter that manages to be both generous and insulting.', S[0].x, S[0].z, 6);
+  }
   if(W.treasury > W.nextTreasMile){
     chron('trade', T.treasMile(W.nextTreasMile), S[0].x, S[0].z, 3);
     W.nextTreasMile *= 2;
@@ -4686,12 +4707,18 @@ function tickPolitics(day){
     rest -= Math.min(20, grudgeSum * 0.25);
     const seatS = W.settlements[o.seat];
     if(seatS && seatS.hunger > 0.3) rest -= 8;
+    // a fortune too large to ignore breeds resentment and federal suspicion
+    if(o.wealth > 12000) rest -= Math.min(14, (o.wealth - 12000) / 12000 * 5);
     o.standing += (rest - o.standing) * 0.004 * W.rates.aggression;
     o.standing = clamp(o.standing, 0, 100);
     // might: riders the outfit could raise
     o.might = Math.round(o.wealth*0.006 + (o.herd||0)*0.02 + (seatS ? seatS.pop*0.04 : 0));
     // wealth earns and spends
     o.wealth = Math.max(50, o.wealth * 0.99985 + (o.herd||0)*0.01);
+    // the county assesses a great fortune — dues that scale with what there is to tax
+    if(o.wealth > 3000){ const assess = (o.wealth - 3000) * 0.0004 * (W.rates.tax/0.12); o.wealth -= assess; W.treasury += assess; }
+    // merchants live off the trade they move, not off cattle
+    if(o.kind === 'merchant' && seatS && !seatS.ghost) o.wealth += seatS.tradeAct * seatS.prosperity * 0.8;
     if(o.kind==='cattle' && seatS) o.herd = seatS.herd;
   });
   // order drifts toward the middle
@@ -5589,7 +5616,7 @@ function spawnRustlerCamp(day, atX, atZ){
     }
     if(!ok) return null;
   }
-  const camp = { x, z, strength: ri(R, 18, 34), raids: 0, bounty: 0, boss: null, mesh: campMesh(x, z) };
+  const camp = { x, z, strength: ri(R, 18, 34), raids: 0, bounty: 0, boss: null, lastRaid: day, mesh: campMesh(x, z) };
   W.camps.push(camp);
   if(chance(R, 0.5)) chron('law', 'ROAD AGENTS. — Freighters report riders shadowing the ' + pickH(CONTENT.gazette.roadAgentDir) + ' road. Travel armed, or entertaining.', x, z, 5);
   return camp;
@@ -5609,6 +5636,15 @@ function tickRustlers(day){
     spawnRustlerCamp(day);
   }
   for(const camp of W.camps.slice()){
+    // a camp that finds nothing to rob withers: horses to feed, no plunder, men drift off
+    if(day - (camp.lastRaid||0) > 60){
+      camp.strength -= 0.15;
+      if(camp.strength < 10 && !camp.boss){
+        chron('law', 'THE BREAKS GO QUIET. — The road agents that worked this country seem to have drifted off, or hanged each other. The road is easier for it.', camp.x, camp.z, 4);
+        removeCamp(camp);
+        continue;
+      }
+    }
     // ambush what passes near (positions computed from the route, not the render)
     for(const a of W.agents.slice()){
       if(a.kind === 'posse' || a.kind === 'train' || a.robbed) continue;
@@ -5616,7 +5652,8 @@ function tickRustlers(day){
       if(dist2d(camp.x, camp.z, _ap.x, _ap.z) > 340) continue;
       if(!chance(R, 0.5)) continue;
       camp.raids++;
-      camp.strength += 4;
+      camp.strength = Math.min(90, camp.strength + 4);
+      camp.lastRaid = day;
       camp.bounty += Math.round(a.value*0.5) + (a.gold||0);
       const S = W.settlements;
       if(a.kind === 'drive'){
@@ -5645,18 +5682,34 @@ function tickRustlers(day){
       chron('law', 'A NAME IN THE BREAKS. — The road agents ride under ' + nName(n) + ' now. The county prints a reward and hopes.', camp.x, camp.z, 7);
     }
     // the county responds to famous camps
-    if((camp.raids >= 3 || camp.strength > 50) && !camp.posseDay && W.treasury > 300){
-      camp.posseDay = day + ri(R, 12, 30);
-      W.treasury -= 200;
-      chron('law', 'BOUNTY POSTED. — ' + money(500 + camp.bounty) + ' for the road agents' + (camp.boss ? ' and ' + nName(notable(camp.boss)) : '') + ', dead or alive, mostly dead.', camp.x, camp.z, 5);
+    if((camp.raids >= 3 || camp.strength > 50) && !camp.posseDay){
+      let funded = false; camp.federal = false; camp.underwriter = null;
+      if(W.treasury > 300){ W.treasury -= 200; funded = true; }
+      else {
+        // the county cannot pay — the biggest cattleman underwrites the reward himself
+        const backer = W.outfits.filter(o => !o.exiled && o.wealth > 2000).sort((a,b)=>b.wealth-a.wealth)[0];
+        if(backer){ backer.wealth -= 400; backer.standing = Math.min(100, backer.standing + 4); funded = true; camp.underwriter = backer.sur; }
+      }
+      // a camp grown into a menace draws a federal marshal whether or not the county can pay
+      if(!funded && (camp.strength > 55 || camp.raids >= 6)){ funded = true; camp.federal = true; }
+      if(funded){
+        camp.posseDay = day + ri(R, 12, 30);
+        chron('law', camp.federal
+          ? 'A FEDERAL MARSHAL. — Word of the breaks has reached the district court. A marshal is riding out, and he is not bringing a collection plate.'
+          : 'BOUNTY POSTED. — ' + money(500 + camp.bounty) + ' for the road agents' + (camp.boss ? ' and ' + nName(notable(camp.boss)) : '') + ', dead or alive, mostly dead.' + (camp.underwriter ? ' The ' + camp.underwriter + 's have put up the purse.' : ''),
+          camp.x, camp.z, camp.federal ? 7 : 5);
+      }
     }
     if(camp.posseDay && day >= camp.posseDay){
       camp.posseDay = 0;
       // a jail in the nearest town means the posse rides better organized
       let nearS = null, nearD = 1e18;
       W.settlements.forEach(s2 => { const d = dist2d(camp.x,camp.z,s2.x,s2.z); if(d < nearD){ nearD = d; nearS = s2; } });
-      const lawP = 0.62 + W.order*0.002 - camp.strength*0.002 + (nearS && nearS.hasJail ? 0.06 : 0);
-      if(chance(R, clamp(lawP, 0.25, 0.85))){
+      // a federal marshal comes better armed and does not care how big the camp has grown
+      const lawP = camp.federal
+        ? 0.75 + (nearS && nearS.hasJail ? 0.06 : 0)
+        : 0.62 + W.order*0.002 - camp.strength*0.002 + (nearS && nearS.hasJail ? 0.06 : 0);
+      if(chance(R, clamp(lawP, 0.25, 0.92))){
         const bossN = camp.boss ? notable(camp.boss) : null;
         if(bossN){
           // with a county jail standing, the law would rather have him breathing
@@ -5667,12 +5720,16 @@ function tickRustlers(day){
             chron('law', 'TAKEN ALIVE. — ' + nName(bossN) + ' will answer to the district court, which is more than his men can say.', camp.x, camp.z, 6);
           }
         }
-        chron('law', 'THE CAMP CLEARED. — The sheriff’s men came back with spare horses and short answers. The road is open.', camp.x, camp.z, 6);
-        W.order = Math.min(100, W.order + 5);
+        chron('law', camp.federal
+          ? 'THE MARSHAL RETURNS. — The federal man came back with spare horses and short answers. The breaks are quiet, for now.'
+          : 'THE CAMP CLEARED. — The sheriff’s men came back with spare horses and short answers. The road is open.', camp.x, camp.z, 6);
+        W.order = Math.min(100, W.order + (camp.federal ? 4 : 5));
         W.lastDeathSpot = {x:camp.x, z:camp.z};
         removeCamp(camp);
       } else {
-        camp.strength += 15;
+        // a beaten county posse leaves the camp emboldened; a beaten marshal still bleeds it badly
+        camp.strength = camp.federal ? Math.max(8, Math.round(camp.strength * 0.5)) : Math.min(90, camp.strength + 10);
+        camp.federal = false;
         chron('law', 'REPULSED. — The posse found the camp, and wishes it had not. Two men are walking home.', camp.x, camp.z, 6);
         W.order = Math.max(0, W.order - 4);
       }
@@ -5787,7 +5844,7 @@ function tickGang(day){
     let vaults = 0;
     W.settlements.forEach(s2 => { if(!s2.ghost) vaults += s2.vault||0; });
     const bait = Math.max(0, W.treasury - 2600) + vaults*0.8 + (W.rail && W.rail.done ? 1500 : 0);
-    if(chance(R, clamp(bait/9000, 0, 0.55) * 0.004 * fateMult(day))) rouseGang(day);
+    if(chance(R, clamp(bait/6000, 0, 0.7) * 0.008 * fateMult(day))) rouseGang(day);
     return;
   }
   const tgtS = W.settlements[g.target||0] || W.settlements[0];
@@ -7607,6 +7664,29 @@ window.GAZETTE = {
   strikes(){ return W.settlements.filter(s=>s.strike || s.ghost).map(s=>({name:s.name, ghost:!!s.ghost, richness: s.strike ? +s.strike.richness.toFixed(2) : 0})); },
   gang(){ const g = W.gang; return g ? {name:g.name, state:g.state, loot:Math.round(g.loot), legend:g.legend, leader: notable(g.leader) ? nName(notable(g.leader)) : null} : null; },
   outfits(){ return W.outfits.map(o => ({name: o.brand.name, sur: o.sur, standing: Math.round(o.standing), might: o.might, wealth: Math.round(o.wealth), herd: Math.round(o.herd||0), exiled: o.exiled})); },
+  // read-only balance snapshot: aggregates chron by class in 5-year buckets, no rng draws
+  metrics(){
+    let pop = 0; W.settlements.forEach(s => pop += s.pop);
+    const byCls5 = {};
+    for(const e of W.chron){
+      const b = Math.floor(Math.floor(e.day/360)/5)*5;
+      (byCls5[b] = byCls5[b] || {})[e.cls] = ((byCls5[b] || {})[e.cls] || 0) + 1;
+    }
+    return {
+      day: Math.round(W.clock.day),
+      year: Math.floor(W.clock.day/360),
+      order: +W.order.toFixed(1),
+      treasury: Math.round(W.treasury),
+      pop: Math.round(pop),
+      ghosts: W.settlements.filter(s=>s.ghost).length,
+      war: !!(W.pol && W.pol.war),
+      gangState: W.gang ? W.gang.state : null,
+      camps: W.camps.map(c => ({ str: Math.round(c.strength), raids: c.raids, boss: !!c.boss })),
+      outfits: W.outfits.filter(o=>!o.exiled).map(o => ({ kind:o.kind, wealth: Math.round(o.wealth), might: o.might, standing: Math.round(o.standing), herd: Math.round(o.herd||0) })),
+      chronByClass5y: byCls5,
+      chronLen: W.chron.length
+    };
+  },
   seed(s){ history.replaceState(null,'','#s='+encodeURIComponent(s)); return forgeWorld(String(s)); }
 };
 
