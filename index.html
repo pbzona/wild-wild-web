@@ -1951,7 +1951,9 @@ function drawBrandGlyph(g, glyph, s){
   }
   g.stroke();
 }
-function makeBrand(R, letterHint){
+// `used` (optional) = { icons:Set, names:Set } — makeBrand retries until the brand's
+// visual signature AND spoken name are both unused, so no two outfits share an icon or a name.
+function makeBrand(R, letterHint, used){
   const BR = CONTENT.brands;
   const cores = [
     {k:'letter', ch:letterHint || pick(R,BR.letterPool.split(''))},
@@ -1959,21 +1961,29 @@ function makeBrand(R, letterHint){
     {k:'digit', ch:pick(R,BR.digitPool.split(''))},
     ...BR.shapes.map(k=>({k}))
   ];
-  const core = pick(R, cores);
   const mods = BR.modifiers;
-  const mod = pick(R, mods);
-  const coreName = core.k==='letter'||core.k==='digit' ? core.ch :
-    core.k.charAt(0).toUpperCase()+core.k.slice(1);
-  let name;
-  switch(mod){
-    case 'bar': name = 'Bar ' + coreName; break;
-    case 'rocker': name = 'Rocking ' + coreName; break;
-    case 'lazy': name = 'Lazy ' + coreName; break;
-    case 'circle': name = 'Circle ' + coreName; break;
-    case 'flying': name = 'Flying ' + coreName; break;
-    case 'double': name = 'Double ' + coreName; break;
-    default: name = coreName + (core.k==='letter' ? ' ' + pick(R,BR.letterSuffix) : '');
+  let core, mod, name, sig;
+  for(let attempt=0; ; attempt++){
+    core = pick(R, cores);
+    // if the surname's initial letter proves crowded, open up the whole alphabet
+    if(attempt >= 6 && core.k==='letter') core = {k:'letter', ch: pick(R, BR.letterPool.split(''))};
+    mod = pick(R, mods);
+    const coreName = core.k==='letter'||core.k==='digit' ? core.ch :
+      core.k.charAt(0).toUpperCase()+core.k.slice(1);
+    switch(mod){
+      case 'bar': name = 'Bar ' + coreName; break;
+      case 'rocker': name = 'Rocking ' + coreName; break;
+      case 'lazy': name = 'Lazy ' + coreName; break;
+      case 'circle': name = 'Circle ' + coreName; break;
+      case 'flying': name = 'Flying ' + coreName; break;
+      case 'double': name = 'Double ' + coreName; break;
+      default: name = coreName + (core.k==='letter' ? ' ' + pick(R,BR.letterSuffix) : '');
+    }
+    // the icon is fully determined by the glyph + modifier (the suffix only flavors the name)
+    sig = (core.k==='letter'||core.k==='digit') ? core.k+':'+core.ch+':'+mod : core.k+':'+mod;
+    if(!used || attempt >= 40 || (!used.icons.has(sig) && !used.names.has(name))) break;
   }
+  if(used){ used.icons.add(sig); used.names.add(name); }
   const cv = document.createElement('canvas');
   cv.width = cv.height = 96;
   const g = cv.getContext('2d');
@@ -1997,7 +2007,22 @@ function makeBrand(R, letterHint){
   if(mod==='circle'){ g.arc(48,48,38,0,Math.PI*2); }
   if(mod==='flying'){ g.moveTo(10,30); g.lineTo(24,22); g.moveTo(86,30); g.lineTo(72,22); }
   g.stroke();
-  return { name, canvas: cv, url: cv.toDataURL() };
+  return { name, sig, canvas: cv, url: cv.toDataURL() };
+}
+// gather the surnames, brand icons, and brand names already spoken for, so new outfits stay distinct
+function collectOutfitUsed(){
+  const u = { surs: new Set(), icons: new Set(), names: new Set() };
+  for(const o of W.outfits){
+    if(o.sur) u.surs.add(o.sur);
+    if(o.brand){ if(o.brand.sig) u.icons.add(o.brand.sig); if(o.brand.name) u.names.add(o.brand.name); }
+  }
+  return u;
+}
+function pickUniqueSurname(R, used){
+  let sur = pick(R, SURNAMES);
+  for(let i=0; i<40 && used && used.surs.has(sur); i++) sur = pick(R, SURNAMES);
+  if(used) used.surs.add(sur);
+  return sur;
 }
 let NOTABLE_ID = 1;
 function makeNotable(o){
@@ -2030,13 +2055,14 @@ function genOutfits(){
   if(miningTown) kinds.splice(2, 0, 'mining');
   if(ranches.length > 2 || chance(R,0.4)) kinds.unshift('cattle');
   let ranchI = 0;
+  const used = { surs: new Set(), icons: new Set(), names: new Set() };
   kinds.slice(0,5).forEach((kind, oi) => {
-    const sur = pick(R, SURNAMES);
+    const sur = pickUniqueSurname(R, used);
     let seat;
     if(kind==='cattle' && ranchI < ranches.length) seat = W.settlements.indexOf(ranches[ranchI++]);
     else if(kind==='mining') seat = W.settlements.indexOf(miningTown);
     else seat = 0;
-    const brand = makeBrand(R, sur.charAt(0));
+    const brand = makeBrand(R, sur.charAt(0), used);
     const head = makeNotable({sur, outfit: oi, role:'head', age: ri(R,38,62)});
     const o = {
       name: kind==='cattle' ? 'the ' + brand.name + ' outfit' :
@@ -4786,8 +4812,9 @@ function raiseOutfit(day){
   });
   if(seat < 0) W.settlements.forEach((s,i) => { if(seat < 0 && !taken.has(i) && !s.ghost && i !== 0) seat = i; });
   if(seat < 0) return;
-  const sur = pick(R, SURNAMES);
-  const brand = makeBrand(R, sur.charAt(0));
+  const used = collectOutfitUsed();
+  const sur = pickUniqueSurname(R, used);
+  const brand = makeBrand(R, sur.charAt(0), used);
   const tints = [[0x8b3a2e,0xd9b48a],[0x3f5a5e,0xa8c2b8],[0x6b5a86,0xcabede],[0x9c6a2e,0xe3cb9a],[0x54633c,0xbcc9a0],[0x7d3a55,0xd8aabe]];
   const head = makeNotable({sur, outfit: W.outfits.length, role:'head', age: ri(R,32,52)});
   const isRanch = W.settlements[seat].ranch;
