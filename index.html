@@ -355,6 +355,11 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Vercel Web Analytics — the @vercel/analytics package loaded straight from a CDN (no build step, no package manager). Beacons to /_vercel/insights/* light up automatically once deployed on Vercel. -->
+<script type="module">
+  import { inject } from 'https://esm.sh/@vercel/analytics@2.0.1';
+  inject();
+</script>
 <script>
 (function(){
 'use strict';
