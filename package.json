@@ -1,0 +1,21 @@
+{
+  "name": "wild-wild-web",
+  "version": "1.0.0",
+  "description": "A procedurally generated Wild West territory that lives on its own",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "procedural-generation",
+    "wild-west",
+    "simulation",
+    "three.js"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^1.3.1"
+  }
+}
