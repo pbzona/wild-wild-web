@@ -74,7 +74,8 @@ Raycast click opens the Inspector (§15). Hotkeys: Space pause, 1–5 speeds, H 
 Two-layer model:
 
 - **Pools:** each settlement tracks population with birth/death/migration rates modified by food, cholera, war, prosperity, and gold rushes. Pools drive building growth, posse size, tax income, bubble density.
-- **Notables:** ~100–140 named characters — officials, outfit families, plus flavor roles (preacher, Doc, a famous gunsmith, an Outlaw Boss when one arises, a doomsayer at Tall Tales High). Notables have age, sex, outfit, 2 traits, relationships (spouse, heirs, grudges), and an agenda line. They marry (alliance-valued), have children, and die by hazard curves plus events (gunfight, cholera, childbirth, the occasional hanging). Deaths and births are Gazette copy; important ones are Director beats.
+- **Notables:** ~100–140 named characters — officials, outfit families, plus flavor roles (preacher, Doc, a famous gunsmith, an Outlaw Boss when one arises, a doomsayer at Tall Tales High). Notables have age, sex, outfit, 2 traits, relationships (spouse, heirs, grudges), and a persistent ambition. They marry (alliance-valued), have children, and die by hazard curves plus events (gunfight, cholera, childbirth, the occasional hanging). Deaths and births are Gazette copy; important ones are Director beats.
+- **Figures of consequence:** every sitting outfit head and major official is a principal character with a trait-derived signature that modestly affects an existing event (posse force, elections, cattle sales, or outfit standing). Important events record named actors and add a bounded five-item deed history plus renown. A character with multiple substantial deeds can earn an epithet and become a **Legend of the Territory**; legend is earned, never inherited with an office or brand.
 
 ## 8. Economy & trade
 
@@ -89,7 +90,7 @@ Legibility over realism. Seven goods: **grain, cattle, timber, ore, tools, whisk
 ## 9. Officials, outfits & politics
 
 - **Governorship:** the territorial governor is appointed ("word from Washington") every 4–8 years or on death/scandal; appointment weight = outfit lobbying + Order. Each governorship is a Gazette era header.
-- **Elections:** county elections every 4 years (sheriff, judge, mayors) + on vacancies. Candidates are outfit-backed notables; vote share from outfit influence, candidate traits, and incumbent performance. A margin under 8% with an aggressive loser → **disputed election**: rival claimants, courthouse standoff, Order −15, possible range-war spark.
+- **Elections:** county elections every 4 years (sheriff, judge, mayors) + on vacancies. Candidates are outfit-backed notables; vote share from outfit influence, candidate traits, signature, and incumbent performance. A close margin with an aggressive loser → **disputed election**: named rival claimants, courthouse standoff, Order −15, and an observed turning point that ends in concession, a badge changing hands, or a range-war spark.
 - **Order (0–100)** on the territory: raised by convictions, hangings of outlaws, festivals (July 4th), rail completion, the gang brought in; lowered by unresolved holdups, vigilance committees, disputed elections, famine, dark omens at Tall Tales High. Each county **jail** (up to 4 count) raises Order's resting point by 3; a jailed town also sheds a little lawlessness daily, a jail in the town nearest a rustler camp improves posse odds, and a jail at the seat makes the marshal likelier to take the gang and its bosses alive.
 - **Trials:** an outlaw boss taken alive goes on the district-court docket (20–50 days out). Verdict weighs Order: hanged (Order +6), prison (+3), or out through the roof (Order −5, seat lawlessness +6) — each a Gazette headline.
 - **Outfit standing (0–100 each):** drifts with taxes, water/grazing rights, shared range wars, marriages and business partnerships, slights and grudges. A fortune too large to ignore breeds **federal suspicion** (wealth above ~12,000 drags standing down), which pushes a dominant outfit toward the war/ambition thresholds — the predator on runaway consolidation.
@@ -100,7 +101,7 @@ Legibility over realism. Seven goods: **grain, cattle, timber, ore, tools, whisk
 ## 10. Range wars
 
 - **Posses:** raised from settlement pools (strength = f(population, prosperity, fortifications)); a posse is one entity rendered as up to ~100 instanced riders under a brand guidon (icon beyond 800 m). Posses ride trails, eat supply, and are gorgeous in Follow cam.
-- **Gunfights:** posses in contact → 2-sim-day abstract resolution in three phases (skirmish/shootout/rout) with muzzle flashes, dust, and casualties trickling both pools. Odds from strength × morale × terrain × weather × leader grit. Losers scatter; named leaders can die or win epithets ("Deadeye Cole").
+- **Gunfights:** posses in contact → abstract resolution with casualties trickling both pools. Odds from strength × morale × terrain × weather × leader grit and signature. Losers scatter; named leaders retain the deed, can die, and may eventually earn epithets ("Deadeye Cole"). A fight that decides the war becomes an observed turning point (§13); ordinary fights remain Gazette stories.
 - **Standoffs:** a posse at a fortified town pitches a visible camp. Countdown = f(fortifications, stores, season); assaults roll on leader boldness. A fallen town is looted (prosperity hit, fire risk, Gazette lament) or occupied (brand flips).
 - War score from gunfights, standoffs, and months held; at ±100 or exhaustion → peace: a new governor, an exiled outfit (brand struck through), ceded range, or a hollow truce. A war past a year draws **federal troops** who force the peace. Burned blocks and boot hills persist; battlefields get a marker naming the fight. Scars are content.
 
@@ -127,6 +128,7 @@ Each threat couples into existing systems:
 A scrolling newsprint panel printing dated entries in frontier-editor voice via a template grammar with slots, tone variants, and occasional editorializing ("this paper has said before that no good comes of a comet"). Entry classes: births/deaths/marriages/appointments, harvests and famines, trade and town charters, war declarations/gunfights/standoffs/peaces, disasters, omens, rustler and gang affairs, gold strikes, railroad progress, festivals.
 
 - Every entry is clickable → the camera flies to the spot (or to the ruin, boot hill, or ghost town that remains).
+- Character events carry actor ids. An **In This Story** line opens those people directly, while their inspectors retain ambitions, signatures, renown, and the latest five deeds.
 - Era headers divide the scroll: "THE GOVERNORSHIP OF ABEL CRANE, BEGUN 1871."
 - Filter chips (Law / Frontier / Trade / Fates). Export saves the full archive as .txt — a shareable artifact of the run.
 - Fully local, no API.
@@ -139,6 +141,8 @@ An event bus emits beats with priorities (gang raid/train robbery 10, tornado 9,
 - Shot grammar: wide establishing → push-in; low tracking shots for drives, stages, and construction crews; slow orbit for standoffs and festivals; high wide for range flips.
 - When idle, drifts between golden-hour orbits of settlements — occasionally a ghost town at dusk.
 - Renders a lower-third beat card with the Gazette line for the current shot.
+
+**Observed turning points:** disputed elections, gang showdowns, governor assassinations, and decisive range-war fights resolve completely in their normal whole-day tick, then pause the clock for a 10-second render-only presentation. The camera snaps to the location; two pooled riders mark the confrontation; the card first states the stakes and then reveals the fixed outcome. The previous speed resumes unless the viewer intervenes. Rendering never rolls or changes the result, and headless `simDays` skips presentation entirely.
 
 **Watch mode (C):** hides everything but the date and beat card — the screensaver-documentary mode. Manual camera input politely suspends the director for 30 s.
 
@@ -159,7 +163,7 @@ Inspector (raycast click): buildings (name, type, tier, household, stored goods)
 
 ## 16. Data model sketch
 
-Plain objects: `World { seed, heightmap, biomes, rivers[], settlements[], trails[], outfits[], notables[], posses[], agents[], strikes[], rail, gang, threats[], clock, treasury, order }` · `Settlement { name, pos, pop, prosperity, lawlessness, stores{7}, fort, buildings[], owner, landing, rail, ghost, infected{S,I,R} }` · `Outfit { name, brand, seat, standing, might, wealth, herd, grudges{} }` · `Rail { chartered, line[], builtM, depots[], trains[], bypassed[] }` · `Event { day, class, priority, pos, actors[], text }` → feeds Gazette + Director. Systems are pure-ish functions over World in tick order; one rand(stream) gateway for all stochastic draws.
+Plain objects: `World { seed, heightmap, biomes, rivers[], settlements[], trails[], outfits[], notables[], posses[], agents[], strikes[], rail, gang, threats[], clock, treasury, order }` · `Notable { id, name, age, traits[2], outfit, role, spouse, parent, ambition, signature, fame, deeds[≤5], legendAt }` · `Settlement { name, pos, pop, prosperity, lawlessness, stores{7}, fort, buildings[], owner, landing, rail, ghost, infected{S,I,R} }` · `Outfit { name, brand, seat, head, standing, might, wealth, herd, grudges{} }` · `Rail { chartered, line[], builtM, depots[], trains[], bypassed[] }` · `Event { id, day, class, priority, pos, kind, actors[], text, scene? }` → feeds Gazette, character memory, Director, and optional render-only presentation. Systems are pure-ish functions over World in tick order; one rand(stream) gateway for all stochastic draws.
 
 ## 17. Explicit non-goals
 

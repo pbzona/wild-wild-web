@@ -109,6 +109,9 @@ body.aiming #app canvas{ cursor:crosshair; }
 .ce.law .d{ color:var(--rust); } .ce.frontier .d{ color:#7d2a20; } .ce.trade .d{ color:#6d5a2e; }
 .ce.fate .d{ color:#54406b; } .ce.myth .d{ color:#3c4a75; } .ce.rail .d{ color:#3f5a5e; }
 .ce.flavor{ color:#544a3c; font-style:italic; } .ce.flavor .d{ color:#8a7c66; }
+.ce .actors{ margin-top:3px; font-family:var(--sans); font-size:8.5px; letter-spacing:0.06em; color:var(--ink2); font-style:normal; }
+.ce .actors span{ cursor:pointer; border-bottom:1px dotted var(--rule); }
+.ce .actors span:hover{ color:var(--rust); }
 #gzScroll[data-f="law"] .ce:not(.law):not(.year):not(.era){ display:none; }
 #gzScroll[data-f="frontier"] .ce:not(.frontier):not(.year):not(.era){ display:none; }
 #gzScroll[data-f="trade"] .ce:not(.trade):not(.year):not(.era){ display:none; }
@@ -199,12 +202,19 @@ body.aiming #app canvas{ cursor:crosshair; }
 #inspector .wanted .wt{ font-family:var(--disp); font-size:16px; letter-spacing:0.1em; }
 #inspector .wanted img{ width:84px; height:84px; image-rendering:pixelated; margin:4px 0; }
 #inspector .wanted .wr{ font-size:12px; font-weight:700; letter-spacing:0.04em; }
+#inspector .deeds{ margin-top:8px; padding-top:5px; border-top:1px solid var(--rule); }
+#inspector .deeds b{ display:block; font-family:var(--disp); font-size:11px; margin-bottom:3px; }
+#inspector .deed{ font-size:11px; line-height:1.3; padding:2px 0; color:var(--ink2); }
 
 /* ---------- director beat card / watch ---------- */
-#beatCard{ position:fixed; left:50%; bottom:34px; transform:translateX(-50%); z-index:9; display:none; max-width:520px;
+#beatCard{ position:fixed; left:50%; bottom:34px; transform:translateX(-50%); z-index:9; display:none; width:min(520px,calc(100vw - 32px)); box-sizing:border-box;
   background:rgba(35,27,20,0.88); border:1px solid #6e5a40; border-left:3px solid var(--gold); color:#efe4c8;
   padding:9px 16px; font-size:13.5px; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,0.5); }
 #beatCard .d{ font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#c9b78e; display:block; margin-bottom:2px; }
+#beatCard .actors{ margin-top:5px; font-family:var(--sans); font-size:9px; letter-spacing:0.06em; color:#c9b78e; }
+#beatCard .actors span{ cursor:pointer; pointer-events:auto; border-bottom:1px dotted #c9b78e; }
+body.storyScene #beatCard{ border-left-color:var(--rust); width:min(600px,calc(100vw - 32px)); }
+body.storyScene #camFrame{ border-color:rgba(139,58,46,0.75); }
 #watchDate{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:9; display:none;
   font-family:var(--disp); font-size:15px; color:#efe4c8; text-shadow:0 2px 6px rgba(0,0,0,0.7); letter-spacing:0.05em; }
 #camFrame{ position:fixed; inset:10px; pointer-events:none; z-index:5; border:1px solid rgba(201,162,39,0.55); display:none; }
@@ -551,7 +561,17 @@ const CONTENT = {
   epithets: {
     gunfight: ['Deadeye','Iron','Lucky','Two-Gun','the Wolf','Longshot','Quickdraw','the Cat','Steel','the Fox','Cold-Deck','Buckshot'],
     rustlerBoss: ['Black','the Kid','Three-Finger','Dutch','the Preacher','Snake-Eye','Ace','the Weasel','Red','One-Ear','the Kansan','Rawhide'],
-    gangLeader: ['Black','Midnight','the Colonel','Cimarron','Handsome','the Deacon','the Ghost','Ironhand','the Parson','Silvertongue','the Baron','Gentleman']
+    gangLeader: ['Black','Midnight','the Colonel','Cimarron','Handsome','the Deacon','the Ghost','Ironhand','the Parson','Silvertongue','the Baron','Gentleman'],
+    political: ['the Lion','Old Granite','the Silver Tongue','the Fox','the Senator','the Unbending'],
+    trail: ['Long Trail','Sagebrush','Rawhide','Dusty','High Plains','the Drover']
+  },
+
+  signatures: {
+    rider: ['Rider’s Nerve','leads posses with 8% more force'],
+    broker: ['County Connections','adds weight at the ballot box'],
+    stockman: ['Long Trail Hand','adds 5% to outfit cattle sales'],
+    keeper: ['A Good Name','steadies the outfit’s standing'],
+    feuder: ['Old Scores','leads posses with 5% more force']
   },
 
   // officials: the appointment slots + display / appointment titles
@@ -2025,8 +2045,38 @@ function pickUniqueSurname(R, used){
   return sur;
 }
 let NOTABLE_ID = 1;
+function ambitionCategory(n){
+  if(n.role==='governor') return 'governor';
+  if(n.role==='sheriff') return 'sheriff';
+  if(n.role==='marshal') return 'marshal';
+  if(n.role==='judge') return 'judge';
+  if(n.role==='editor') return 'editor';
+  if(n.role==='preacher') return 'preacher';
+  if(n.role==='doctor') return 'doctor';
+  if(n.role==='outlaw') return 'outlaw';
+  return n.outfit >= 0 || n.role==='head' ? 'outfit' : 'townsfolk';
+}
+function setAmbition(n, force){
+  const key = ambitionCategory(n);
+  if(!force && n.ambition && n.ambitionKey === key) return;
+  const AG = CONTENT.gazette.agenda;
+  let choices = AG[key];
+  if(key==='editor') choices = ['the next number of this paper'];
+  else if(key==='doctor') choices = ['fewer patients, better paid'];
+  const h = xmur3(W.seed + ':ambition:' + n.id + ':' + key)();
+  n.ambitionKey = key;
+  n.ambition = choices[h % choices.length];
+}
+function signatureFor(n){
+  const t = n.traits;
+  if(t.includes('bold') || t.includes('hot-headed')) return 'rider';
+  if(t.includes('shrewd') || t.includes('ambitious') || t.includes('crooked')) return 'broker';
+  if(t.includes('patient') || t.includes('sober') || t.includes('loyal')) return 'stockman';
+  if(t.includes('vengeful') || t.includes('cruel')) return 'feuder';
+  return 'keeper';
+}
 function makeNotable(o){
-  const R = W.rng.gen;
+  const R = o.rng || W.rng.hist || W.rng.gen;
   const sex = o.sex || (chance(R,0.5)?'m':'f');
   const n = {
     id: NOTABLE_ID++,
@@ -2036,9 +2086,12 @@ function makeNotable(o){
     traits: o.traits || [pick(R,TRAITS), pick(R,TRAITS)],
     outfit: o.outfit !== undefined ? o.outfit : -2,   // -1 territory office, -2 townsfolk, >=0 outfit
     role: o.role || null, spouse: null, parent: o.parent || null,
-    alive: true, epithet: o.epithet || null
+    alive: true, epithet: o.epithet || null, fame:0, deeds:[], legendAt:null,
+    ambition:null, ambitionKey:null, signature:null
   };
   while(n.traits[1] === n.traits[0]) n.traits[1] = pick(R,TRAITS);
+  n.signature = signatureFor(n);
+  setAmbition(n, true);
   W.notables.push(n);
   return n;
 }
@@ -3413,9 +3466,48 @@ function updateLabels(){
    ======================================================================= */
 // ---------- the gazette (event bus) ----------
 const PRI_BY_CLS = { era:9, law:6, frontier:8, fate:6, myth:7, rail:7 };
-function chron(cls, text, x, z, pri){
+function isLegend(n){ return !!(n && n.legendAt !== null && n.legendAt !== undefined); }
+function legendEpithet(n, e){
+  if(n.role==='outlaw') return pickH(CONTENT.epithets.gangLeader);
+  if(e && e.kind && e.kind.includes('gunfight')) return pickH(CONTENT.epithets.gunfight);
+  if(e && e.kind && e.kind.startsWith('drive.')) return pickH(CONTENT.epithets.trail);
+  if(n.signature==='broker' || n.signature==='keeper') return pickH(CONTENT.epithets.political);
+  if(n.signature==='stockman') return pickH(CONTENT.epithets.trail);
+  return pickH(CONTENT.epithets.gunfight);
+}
+function actorLinks(e){
+  if(!e.actors || !e.actors.length) return '';
+  const names = e.actors.map(notable).filter(Boolean).map(n => '<span data-nid="' + n.id + '">' + nName(n) + '</span>');
+  return names.length ? '<div class="actors">IN THIS STORY · ' + names.join(' · ') + '</div>' : '';
+}
+function awardStoryFame(e, awards){
+  const newLegends = [];
+  (awards||[]).forEach(a => {
+    const n = notable(a.id);
+    if(!n) return;
+    const points = Math.max(0, a.points||0);
+    n.fame = (n.fame||0) + points;
+    if(a.deed){
+      n.deeds = n.deeds || [];
+      n.deeds.push({event:e.id, day:e.day, text:a.deed, points});
+      if(n.deeds.length > 5) n.deeds.shift();
+    }
+    const major = (n.deeds||[]).filter(d => d.points >= 10).length;
+    if(!isLegend(n) && n.fame >= 50 && major >= 2){
+      n.legendAt = e.day;
+      if(!n.epithet) n.epithet = legendEpithet(n, e);
+      newLegends.push(n);
+    }
+    if(outfitLedBy(n)) outfitsDirty();
+  });
+  return newLegends;
+}
+function chron(cls, text, x, z, pri, meta){
+  meta = meta || {};
   if(pri === undefined) pri = PRI_BY_CLS[cls] || 0;
-  const e = { day: W.clock.day, cls, text, x, z, pri };
+  const actors = [...new Set((meta.actors||[]).filter(id => notable(id)))];
+  const e = { id: ++W.nextEventId, day: W.inDayTick ? W.dayTicked : W.clock.day, cls, text, x, z, pri,
+    kind:meta.kind||null, actors, scene:meta.scene||null };
   W.chron.push(e);
   if(pri > 0 && x !== undefined){
     W.beats.push(e);
@@ -3425,12 +3517,20 @@ function chron(cls, text, x, z, pri){
   const div = document.createElement('div');
   div.className = 'ce ' + cls + (x !== undefined ? ' click' : '');
   if(cls === 'year' || cls === 'era') div.textContent = text;
-  else div.innerHTML = '<span class="d">' + dateStr(e.day) + '</span>' + text;
-  if(x !== undefined) div.addEventListener('click', ()=> flyTo(x, z, 520));
+  else div.innerHTML = '<span class="d">' + dateStr(e.day) + '</span>' + text + actorLinks(e);
+  div.addEventListener('click', ev => {
+    const link = ev.target.closest('[data-nid]');
+    if(link){ const n = notable(+link.dataset.nid); if(n) inspectNotable(n); return; }
+    if(x !== undefined) flyTo(x, z, 520);
+  });
   const stick = sc.scrollTop + sc.clientHeight > sc.scrollHeight - 60;
   sc.appendChild(div);
   while(sc.children.length > 150) sc.removeChild(sc.firstChild);
   if(stick) sc.scrollTop = sc.scrollHeight;
+  const newLegends = awardStoryFame(e, meta.fame);
+  if(e.scene && W.sceneReady && W.allowScenes !== false) queueStoryScene(e);
+  newLegends.forEach(n => chron('myth', 'A NAME FOR THE AGES. — ' + nName(n) + ' is spoken of now as a legend of the territory. Printers back East may shortly improve the facts.', x, z, 7,
+    {kind:'legend.rises', actors:[n.id]}));
   return e;
 }
 function pickH(arr){ return arr[Math.floor(W.rng.hist()*arr.length)]; }
@@ -3666,7 +3766,7 @@ function initEconomy(){
   W.rng.hist = makeStream(W.seed + ':hist');
   W.treasury = 900;
   W.dayTicked = Math.floor(W.clock.day);
-  W.chron = []; W.beats = [];
+  W.chron = []; W.beats = []; W.nextEventId = 0; W.allowScenes = true;
   W.agents = [];
   W.series = [];
   W.rates = { harvest:1, birth:1, mortality:1, trade:1, tax:0.12, disaster:1, rustler:1, aggression:1, fertility:1, cholV:1, cholL:1, tales:1 };
@@ -3797,6 +3897,14 @@ function agentTemplates(){
     gbTri(gb, 0.05, 3.3, 9, 0.05, 2.9, 9, 1.0, 3.1, 9.1, fc);
     gbTri(gb, 0.05, 2.9, 9, 0.05, 3.3, 9, 1.0, 3.1, 9.1, shade(fc,0.85));
     TPL.posse = gbToGeometry(gb);
+  }
+  // one enlarged rider, pooled for render-only turning-point scenes
+  {
+    const gb = GB();
+    horseInto(gb, 0, 0, 0, hexRGB(0x4a3a2c));
+    gbBox(gb, 0, 1.5, 0, 0.3, 0.75, 0.3, hexRGB(0x39485c));
+    gbBox(gb, 0, 2.3, 0, 0.55, 0.14, 0.55, hexRGB(0x6b543c));
+    TPL.rider = gbToGeometry(gb);
   }
 }
 function routePos(route, d, out){
@@ -3979,14 +4087,17 @@ function maybeStartDrives(day){
 function driveArrived(a, dst){
   const S = W.settlements;
   const price = priceOf(dst, 'cattle') * 3.2;
-  const v = Math.round(a.qty * price);
+  let v = Math.round(a.qty * price);
   dst.stores.cattle += a.qty * 0.3;
   dst.stores.grain += a.qty * 0.04;    // the buyers feed them out
   dst.tradeAct = Math.min(6, dst.tradeAct + 2);
   W.treasury += Math.min(v * W.rates.tax, 260);
   if(a.outfit){
+    const head = notable(a.outfit.head);
+    if(head && head.signature === 'stockman') v = Math.round(v * 1.05);
     a.outfit.wealth += v;
-    chron('trade', T.driveArrive(a.outfit, a.qty, dst, v), dst.x, dst.z, 5);
+    chron('trade', T.driveArrive(a.outfit, a.qty, dst, v), dst.x, dst.z, 5, head ?
+      {kind:'drive.arrived', actors:[head.id], fame:[{id:head.id, points:6, deed:'Brought a cattle drive safely to ' + dst.name}]} : null);
   }
 }
 
@@ -4202,6 +4313,7 @@ function seasonFactor(day){
   return [0.85, 1.05, 1.5, 0.28][sn] * (W.drought ? 0.4 : 1) * (day < (W.blessUntil||0) ? 1.5 : 1);
 }
 function tickDay(day){
+  W.inDayTick = true;
   const S = W.settlements, R = W.rng.hist;
   const doy = Math.floor(((day%360)+360)%360);
   // calendar
@@ -4383,6 +4495,7 @@ function tickDay(day){
     chron('flavor', T.flavor());
   }
   if(W.chron.length) W.lastChronDay = W.chron[W.chron.length-1].day;
+  W.inDayTick = false;
 }
 function simAdvance(nd){
   W.clock.day += nd;
@@ -4538,24 +4651,24 @@ function doPick(cx, cy){
 // ---------- notable machinery ----------
 function livingNotables(){ return W.notables.filter(n=>n.alive); }
 function officialOf(role){ return W.notables.find(n => n.alive && n.role === role) || null; }
+function outfitLedBy(n){ return n && W.outfits ? W.outfits.find(o => !o.exiled && o.head === n.id) : null; }
+function isPrincipal(n){
+  if(!n) return false;
+  if(outfitLedBy(n)) return true;
+  if(n.role && ['governor','sheriff','marshal','judge','preacher','doctor','editor','outlaw'].includes(n.role)) return true;
+  if(W.gang && W.gang.leader === n.id) return true;
+  return (n.fame||0) >= 20;
+}
 function agendaOf(n){
-  const AG = CONTENT.gazette.agenda;
-  if(n.role==='governor') return pickH(AG.governor);
-  if(n.role==='sheriff') return pickH(AG.sheriff);
-  if(n.role==='marshal') return pickH(AG.marshal);
-  if(n.role==='judge') return pickH(AG.judge);
-  if(n.role==='editor') return 'the next number of this paper';
-  if(n.role==='preacher') return pickH(AG.preacher);
-  if(n.role==='doctor') return 'fewer patients, better paid';
-  if(n.role==='outlaw') return pickH(AG.outlaw);
-  if(n.outfit >= 0) return pickH(AG.outfit);
-  return pickH(AG.townsfolk);
+  if(!n.ambition) setAmbition(n, true);
+  return n.ambition;
 }
 function nLink(n){ return '<span class="nlink" data-nid="' + n.id + '">' + nName(n) + '</span>'; }
 function inspectNotable(n){
   const o = n.outfit >= 0 ? W.outfits[n.outfit] : null;
   let html = '<h3>' + (o ? '<img src="' + o.brand.url + '">' : '') + nName(n) + '</h3>';
-  html += '<div class="sub">' + roleOf(n) + (o ? ' · ' + o.name : '') + (n.alive ? '' : ' · deceased') + '</div>';
+  const stature = isLegend(n) ? ' · LEGEND OF THE TERRITORY' : isPrincipal(n) ? ' · figure of consequence' : '';
+  html += '<div class="sub">' + roleOf(n) + (o ? ' · ' + o.name : '') + stature + (n.alive ? '' : ' · deceased') + '</div>';
   if(n.wanted){
     html += '<div class="wanted"><div class="wt">WANTED</div><img src="' + n.wanted + '">' +
       '<div class="wr">DEAD OR ALIVE<br>' + money(n.bounty||500) + ' REWARD</div></div>';
@@ -4570,11 +4683,20 @@ function inspectNotable(n){
   }
   html += inspRow('Age', Math.round(n.age));
   html += inspRow('Disposition', n.traits.join(', '));
+  if(isPrincipal(n) || isLegend(n)){
+    const sig = CONTENT.signatures[n.signature];
+    if(sig) html += inspRow('Signature', sig[0] + ' — ' + sig[1]);
+    html += inspRow('Renown', Math.round(n.fame||0) + (isLegend(n) ? ' · legendary' : ''));
+  }
   const sp = notable(n.spouse);
   if(sp) html += inspRow('Married to', nLink(sp));
   const kids = W.notables.filter(k => k.parent === n.id && k.alive);
   if(kids.length) html += inspRow('Children', kids.map(nLink).join(', '));
   if(n.alive) html += inspRow('Mind set on', agendaOf(n));
+  if(n.deeds && n.deeds.length){
+    html += '<div class="deeds"><b>Life in Print</b>' + n.deeds.slice().reverse().map(d =>
+      '<div class="deed">' + dateStr(d.day) + ' · ' + d.text + '</div>').join('') + '</div>';
+  }
   showInspector(html);
   W.inspNotable = n;
 }
@@ -4584,8 +4706,10 @@ function appointOfficial(role, day){
   const n = pool.length ? pickH(pool) : makeNotable({outfit:-2, age: ri(R,30,50)});
   n.role = role;
   if(role==='sheriff' || role==='marshal' || role==='judge') n.outfit = -1;
+  setAmbition(n, true);
   const titles = CONTENT.roles.appointTitles;
-  chron('law', 'APPOINTMENT. — ' + nName(n) + ' takes up the duties of ' + (titles[role]||role) + '.', W.settlements[0].x, W.settlements[0].z, 3);
+  chron('law', 'APPOINTMENT. — ' + nName(n) + ' takes up the duties of ' + (titles[role]||role) + '.', W.settlements[0].x, W.settlements[0].z, 3,
+    {kind:'office.appointed', actors:[n.id], fame:[{id:n.id, points:3, deed:'Appointed ' + (titles[role]||role)}]});
   return n;
 }
 function appointGovernor(day, cause, backerIdx){
@@ -4612,19 +4736,22 @@ function appointGovernor(day, cause, backerIdx){
     n = makeNotable({outfit:-1, age: ri(R,40,60)});
   }
   // the outgoing man returns to private life
-  livingNotables().forEach(k => { if(k.role === 'governor' && k !== n) k.role = null; });
+  livingNotables().forEach(k => { if(k.role === 'governor' && k !== n){ k.role = null; setAmbition(k, true); } });
   n.role = 'governor';
   n.outfit = n.outfit >= 0 ? n.outfit : -1;
+  setAmbition(n, true);
   W.gov = n.id;
   W.pol.nextGovTerm = day + ri(R, 1440, 2880);
   const yr = YEAR0 + Math.floor(day/360) + (Math.floor(((day%360)+360)%360/30) >= 10 ? 1 : 0);
   chron('era', 'THE GOVERNORSHIP OF ' + nName(n).toUpperCase() + ', BEGUN ' + yr + '.');
   chron('law', pickH(['BY WIRE FROM WASHINGTON. — ' + nName(n) + ' is named territorial governor' +
     (cause==='shot' ? ', the office being lately vacated by violence.' : cause==='dead' ? ', the late governor having died in harness.' : '.'),
-    'A NEW HAND ON THE TILLER. — ' + nName(n) + ' takes the governorship.' ]), W.settlements[0].x, W.settlements[0].z, 9);
+    'A NEW HAND ON THE TILLER. — ' + nName(n) + ' takes the governorship.' ]), W.settlements[0].x, W.settlements[0].z, 9,
+    {kind:'governor.appointed', actors:[n.id], fame:[{id:n.id, points:8, deed:'Named territorial governor'}]});
   outfitsDirty();
+  return n;
 }
-function killNotable(n, cause, day){
+function killNotable(n, cause, day, meta){
   if(!n || !n.alive) return;
   n.alive = false;
   const sp = notable(n.spouse);
@@ -4633,17 +4760,27 @@ function killNotable(n, cause, day){
   const causeTxt = {age:'of age and honors', fever:'of the fever', childbed:'in childbed', shot:'of a bullet',
     gunfight:'in the gunfight', hanged:'at the end of a rope', accident:'under an overturned wagon'}[cause] || 'suddenly';
   if(n.role === 'governor'){
-    chron('law', 'THE GOVERNOR IS DEAD. — ' + nName(n) + ' died ' + causeTxt + '. The territory holds its breath.', S0.x, S0.z, 9);
+    const headline = meta && meta.headline ? meta.headline : 'THE GOVERNOR IS DEAD. — ' + nName(n) + ' died ' + causeTxt + '. The territory holds its breath.';
+    const deathEvent = chron('law', headline, S0.x, S0.z, 9,
+      Object.assign({kind:'governor.died', actors:[n.id]}, meta||{}));
     W.order = Math.max(5, W.order - (cause==='shot' ? 16 : 6));
-    appointGovernor(day, cause==='shot' ? 'shot' : 'dead');
-  } else if(n.role === 'head'){
+    const successor = appointGovernor(day, cause==='shot' ? 'shot' : 'dead');
+    if(deathEvent.scene && successor){
+      deathEvent.actors.push(successor.id);
+      deathEvent.scene.outcome = nName(n) + ' is dead. ' + nName(successor) + ' takes the governorship before the blood is dry.';
+    }
+  } else if(n.role === 'head' || (n.outfit >= 0 && W.outfits[n.outfit] && W.outfits[n.outfit].head === n.id)){
     const o = W.outfits[n.outfit];
-    chron('law', 'PASSING. — ' + nName(n) + ', head of ' + o.name + ', died ' + causeTxt + '.', S0.x, S0.z, 6);
+    chron('law', 'PASSING. — ' + nName(n) + ', head of ' + o.name + ', died ' + causeTxt + '.', S0.x, S0.z, 6,
+      {kind:'outfit.head.died', actors:[n.id]});
     const heirs = W.notables.filter(k => k.alive && k.outfit === n.outfit && k.parent === n.id && k.age >= 16);
     const heir = heirs[0] || livingNotables().filter(k => k.outfit === n.outfit && k.age >= 16)[0];
     if(heir){
       heir.role = 'head';
       o.head = heir.id;
+      setAmbition(heir, true);
+      chron('law', 'THE BRAND PASSES. — ' + nName(heir) + ' succeeds ' + nName(n) + ' at the head of ' + o.name + '.', S0.x, S0.z, 6,
+        {kind:'outfit.succession', actors:[heir.id,n.id], fame:[{id:heir.id, points:5, deed:'Inherited ' + o.brand.name}]});
       if(cause==='gunfight' || cause==='shot'){
         // blood remembers
         if(o.lastFoe !== undefined){ o.grudges[o.lastFoe] = (o.grudges[o.lastFoe]||0) + 30; }
@@ -4652,12 +4789,14 @@ function killNotable(n, cause, day){
     } else { o.exiled = true; chron('law', 'THE LINE ENDS. — ' + o.name + ' has no one left to carry the brand.', S0.x, S0.z, 6); }
     outfitsDirty();
   } else if(['sheriff','marshal','judge','preacher','doctor','editor'].includes(n.role)){
-    chron('law', 'OBITUARY. — ' + nName(n) + ', ' + roleOf(n) + ', died ' + causeTxt + '.', S0.x, S0.z, 4);
+    chron('law', 'OBITUARY. — ' + nName(n) + ', ' + roleOf(n) + ', died ' + causeTxt + '.', S0.x, S0.z, 4,
+      {kind:'official.died', actors:[n.id]});
     const r = n.role;
     n.role = null;
     appointOfficial(r, day);
   } else if(cause !== 'age' || chance(W.rng.hist, 0.12)){
-    chron('flavor', 'DIED. — ' + nName(n) + ', ' + causeTxt + '. ' + pickH(CONTENT.gazette.mourning));
+    chron('flavor', 'DIED. — ' + nName(n) + ', ' + causeTxt + '. ' + pickH(CONTENT.gazette.mourning), undefined, undefined, 0,
+      {kind:'notable.died', actors:[n.id]});
   }
 }
 function arrangeMarriage(manual, day){
@@ -4689,7 +4828,8 @@ function arrangeMarriage(manual, day){
   }
   const s = W.settlements[0];
   chron('law', 'MARRIED. — ' + nName(m) + ' to ' + nName(f) + ', at ' + s.name + '. ' +
-    pickH(CONTENT.gazette.marriageAside), s.x, s.z, 6);
+    pickH(CONTENT.gazette.marriageAside), s.x, s.z, 6,
+    {kind:'family.marriage', actors:[m.id,f.id], fame:[{id:m.id, points:2, deed:'Married ' + nName(f)},{id:f.id, points:2, deed:'Married ' + nName(m)}]});
   outfitsDirty();
   return true;
 }
@@ -4732,6 +4872,8 @@ function tickPolitics(day){
     if(gov && gov.outfit === oi) rest += 18;
     if(gov && gov.traits.includes('just')) rest += 5;
     if(gov && gov.traits.includes('cruel')) rest -= 7;
+    const head = notable(o.head);
+    if(head && head.alive && head.signature === 'keeper') rest += 3;
     rest -= (W.rates.tax - 0.12) * 120;
     let grudgeSum = 0;
     for(const k in o.grudges){ grudgeSum += o.grudges[k]; o.grudges[k] = Math.max(0, o.grudges[k] - 0.05); }
@@ -4862,6 +5004,7 @@ function countyElection(day){
     if(c.n.traits.includes('shrewd')) v += 7;
     if(c.n.traits.includes('cruel')) v -= 8;
     if(c.n.traits.includes('drunkard')) v -= 9;
+    if(c.n.signature === 'broker') v += 6;
     if(c.incumbent) v += (W.order - 50) * 0.35;
     c.votes = Math.max(4, v);
     tot += c.votes;
@@ -4870,29 +5013,52 @@ function countyElection(day){
   const win = cands[0], lose = cands[1];
   const margin = (win.votes - lose.votes) / tot;
   if(win.n !== inc){
-    if(inc) inc.role = null;
+    if(inc){ inc.role = null; setAmbition(inc, true); }
     win.n.role = 'sheriff';
     win.n.outfit = win.n.outfit >= 0 ? win.n.outfit : -1;
+    setAmbition(win.n, true);
   }
   chron('law', 'ELECTION. — ' + nName(win.n) + ' is returned County Sheriff' +
     (win.backer >= 0 ? ', with the open blessing of ' + W.outfits[win.backer].name : '') +
     ', by a margin of ' + Math.max(1,Math.round(margin*100)) + ' in the hundred. ' +
     pickH(CONTENT.gazette.electionAside),
-    S0.x, S0.z, 6);
+    S0.x, S0.z, 6, {kind:'election.won', actors:[win.n.id,lose.n.id],
+      fame:[{id:win.n.id, points:15, deed:'Won election as County Sheriff'},{id:lose.n.id, points:0, deed:'Lost the county election to ' + nName(win.n)}]});
   if(margin < 0.12 && lose.backer >= 0){
     const lo = W.outfits[lose.backer];
-    if(lo.amb > 0.45 || lo.standing < 40) disputedElection(day, lose.backer);
+    if(lo.amb > 0.45 || lo.standing < 40) disputedElection(day, lose.backer, win, lose);
   }
   outfitsDirty();
 }
-function disputedElection(day, loserIdx){
+function disputedElection(day, loserIdx, winner, loser){
   const S0 = W.settlements[0];
   const o = W.outfits[loserIdx];
+  const incumbent = winner && winner.n ? winner.n : officialOf('sheriff');
+  const challenger = loser && loser.n ? loser.n : notable(o.head);
   W.order = Math.max(0, W.order - 15);
   S0.unrest = Math.min(100, S0.unrest + 14);
   o.standing = Math.max(0, o.standing - 14);
-  chron('law', 'THE COURTHOUSE AFFAIR. — ' + o.name + ' does not accept the count. Armed men stood on the courthouse steps until dark. This paper counsels calm and keeps a shotgun by the press.', S0.x, S0.z, 9);
-  maybeWar(day, 'the stolen election', 42);
+  const canWar = !W.pol.war && W.outfits.some(o2 => !o2.exiled && o2.standing < 42 && o2.might > 22);
+  let outcome, awards = [];
+  if(!canWar && incumbent && challenger && challenger !== incumbent && chance(W.rng.hist, clamp(0.22 + o.might*0.003 - W.order*0.002, 0.15, 0.48))){
+    incumbent.role = null; setAmbition(incumbent, true);
+    challenger.role = 'sheriff'; setAmbition(challenger, true);
+    outcome = nName(challenger) + ' left the courthouse wearing the badge. ' + nName(incumbent) + ' left by the rear door.';
+    awards = [{id:challenger.id, points:18, deed:'Seized the sheriff’s badge in the Courthouse Affair'},
+      {id:incumbent.id, points:0, deed:'Lost the badge in the Courthouse Affair'}];
+  } else if(canWar){
+    outcome = 'No concession came. Riders left the square to settle the count on the range.';
+    if(challenger) awards.push({id:challenger.id, points:10, deed:'Defied the county count at the courthouse'});
+  } else {
+    outcome = (challenger ? nName(challenger) : o.name) + ' yielded the steps at sundown. The certified count stands.';
+    if(incumbent) awards.push({id:incumbent.id, points:10, deed:'Held the badge through the Courthouse Affair'});
+  }
+  const actors = [incumbent&&incumbent.id,challenger&&challenger.id,o.head].filter(Boolean);
+  chron('law', 'THE COURTHOUSE AFFAIR. — ' + o.name + ' does not accept the count. Armed men stood on the courthouse steps until dark. ' + outcome,
+    S0.x, S0.z, 9, {kind:'election.disputed', actors, fame:awards, scene:{title:'The Courthouse Affair',
+      setup:(challenger?nName(challenger):o.name) + ' contests ' + (incumbent?nName(incumbent)+'’s':'the') + ' claim to the sheriff’s badge.', outcome}});
+  if(canWar) maybeWar(day, 'the stolen election', 42);
+  outfitsDirty();
 }
 // ---------- range wars ----------
 function maybeWar(day, spark, threshold){
@@ -4925,17 +5091,23 @@ function startWar(rebels, spark, day){
   const names = rebels.map(i=>W.outfits[i].name).join(' and ');
   const S0 = W.settlements[0];
   rebels.forEach(i => { W.outfits[i].lastFoe = -1; });
+  const actors = rebels.map(i => W.outfits[i].head).concat([W.gov]).filter(Boolean);
   chron('frontier', 'RANGE WAR. — ' + names.toUpperCase().replace('THE ','the ') + ' has taken up arms over ' + spark +
-    '. Riders are out; sensible men are indoors. The governor calls for order and is not answered.', S0.x, S0.z, 10);
+    '. Riders are out; sensible men are indoors. The governor calls for order and is not answered.', S0.x, S0.z, 10,
+    {kind:'war.started', actors, fame:rebels.map(i => ({id:W.outfits[i].head, points:5, deed:'Took up arms over ' + spark}))});
   updateWarStrip();
 }
 function spawnPosse(side, srcIdx, dstIdx, strength, day){
   const rt = W.routes.get(srcIdx + '>' + dstIdx);
   if(!rt) return null;
   const R = W.rng.hist;
-  const leaderPool = side === 'law'
-    ? [officialOf('marshal'), officialOf('sheriff')].filter(Boolean)
-    : livingNotables().filter(n => n.outfit === side && n.age > 18);
+  let leaderPool;
+  if(side === 'law') leaderPool = [officialOf('marshal'), officialOf('sheriff')].filter(Boolean);
+  else {
+    const kin = livingNotables().filter(n => n.outfit === side && n.age > 18);
+    const head = notable(W.outfits[side] && W.outfits[side].head);
+    leaderPool = head && head.alive ? [head,head,head].concat(kin) : kin;
+  }
   const leader = leaderPool.length ? pickH(leaderPool) : null;
   const a = {
     kind:'posse', side, src:srcIdx, dst:dstIdx, good:null, qty:0, value:0,
@@ -4956,6 +5128,8 @@ function isHostile(a, b){
   const bReb = b.side !== 'law' && w.rebels.includes(b.side);
   return aReb !== bReb;
 }
+const _posseA = {x:0,z:0}, _posseB = {x:0,z:0};
+function possePos(p, day, out){ return routePos(p.route, Math.max(0,(day-p.departDay)*p.speed), out); }
 function resolveGunfight(a, b, day){
   const R = W.rng.hist;
   const wst = W.weather.state;
@@ -4965,6 +5139,8 @@ function resolveGunfight(a, b, day){
     const l = notable(p.leader);
     if(l && l.traits.includes('bold')) valor = 1.15;
     if(l && l.traits.includes('craven')) valor = 0.85;
+    if(l && l.signature === 'rider') valor *= 1.08;
+    if(l && l.signature === 'feuder') valor *= 1.05;
     return p.strength * (0.7 + p.morale) * valor * rr(R, 0.75, 1.25) * wf;
   }
   const pa = power(a), pb = power(b);
@@ -4974,9 +5150,10 @@ function resolveGunfight(a, b, day){
   winP.strength -= casW; loseP.strength -= casL;
   loseP.morale -= 0.25; winP.morale = Math.min(1.05, winP.morale + 0.04);
   const w = W.pol.war;
-  const swing = ri(R, 6, 14);
+  const swing = ri(R, 6, 14), scoreBefore = w.score;
   w.score += (winP.side === 'law' ? 1 : -1) * swing;
-  const p = a.mesh.position;
+  possePos(a, day, _posseA); possePos(b, day, _posseB);
+  const px = (_posseA.x+_posseB.x)*0.5, pz = (_posseA.z+_posseB.z)*0.5;
   // leaders live and die by it
   const lw = notable(winP.leader), ll = notable(loseP.leader);
   let leadLine = '';
@@ -4986,9 +5163,20 @@ function resolveGunfight(a, b, day){
     leadLine = ' Men are calling ' + lw.given + ' ' + lw.sur + ' “' + lw.epithet + '” now.';
   }
   const sideName = s2 => s2==='law' ? 'the law' : W.outfits[s2].name;
+  const ground = pickH(CONTENT.gazette.gunfightGround);
+  const decisive = Math.abs(scoreBefore) < 100 && Math.abs(w.score) >= 100;
+  const actorIds = [lw&&lw.id,ll&&ll.id,
+    winP.side !== 'law' && W.outfits[winP.side].head,
+    loseP.side !== 'law' && W.outfits[loseP.side].head].filter(Boolean);
+  const fame = [];
+  if(lw) fame.push({id:lw.id, points:decisive?26:14, deed:(decisive?'Won the decisive fight':'Won the fight') + ' at the ' + ground + ' against ' + sideName(loseP.side)});
+  if(ll) fame.push({id:ll.id, points:0, deed:'Was driven from the field by ' + sideName(winP.side)});
+  const sceneMeta = decisive ? {title:'The Decisive Fight', setup:(lw?nName(lw):sideName(winP.side)) + ' meets ' + (ll?nName(ll):sideName(loseP.side)) + ' at the ' + ground + '.',
+    outcome:sideName(winP.side) + ' holds the ground. The range war is decided.'} : null;
   chron('frontier', 'GUNFIGHT ON THE RANGE. — ' + sideName(winP.side) + ' drove ' + sideName(loseP.side) +
-    ' off the ground near the ' + pickH(CONTENT.gazette.gunfightGround) + '; ' +
-    (casW+casL) + ' men down.' + leadLine, p.x, p.z, 8);
+    ' off the ground near the ' + ground + '; ' +
+    (casW+casL) + ' men down.' + leadLine, px, pz, 8,
+    {kind:decisive?'war.gunfight.decisive':'war.gunfight', actors:actorIds, fame, scene:sceneMeta});
   // the beaten side routs for home
   if(loseP.strength < 8 || loseP.morale < 0.3){ disbandPosse(loseP); }
   else routeHome(loseP, day);
@@ -4996,6 +5184,7 @@ function resolveGunfight(a, b, day){
   if(winP.side !== 'law') W.outfits[winP.side].lastFoe = loseP.side==='law' ? -1 : loseP.side;
   if(loseP.side !== 'law') W.outfits[loseP.side].lastFoe = winP.side==='law' ? -1 : winP.side;
   updateWarStrip();
+  if(decisive) endWar(w.score > 0 ? 'law' : 'rebels', day);
 }
 function routeHome(p, day){
   const rt = W.routes.get(p.dst + '>' + p.src);
@@ -5034,8 +5223,8 @@ function warDaily(day){
   for(let i=0;i<ps.length;i++) for(let j=i+1;j<ps.length;j++){
     const a = ps[i], b = ps[j];
     if(!isHostile(a,b)) continue;
-    if(a.state === 'march' && b.state === 'march' &&
-       a.mesh.position.distanceTo(b.mesh.position) < 450){
+    possePos(a, day, _posseA); possePos(b, day, _posseB);
+    if(a.state === 'march' && b.state === 'march' && dist2d(_posseA.x,_posseA.z,_posseB.x,_posseB.z) < 450){
       resolveGunfight(a, b, day);
       return;
     }
@@ -5141,6 +5330,7 @@ function renderOutfitsPanel(){
     const st = Math.round(o.standing);
     div.innerHTML = '<img src="' + o.brand.url + '" alt="brand">' +
       '<div class="oinfo"><div class="onm">' + o.brand.name + ' · ' + o.sur + (o.exiled ? ' (driven out)' : '') + '</div>' +
+      '<div class="ometa">' + (head ? nName(head) + ' · ' + CONTENT.signatures[head.signature][0] : 'No living head') + '</div>' +
       '<div class="ometa">' + kindLabel + ' · ' + money(o.wealth) + '</div>' +
       '<div class="ocap"><span title="How the county regards this outfit (0–100)">Standing</span><b>' + st + '</b></div>' +
       '<div class="obar"><i style="width:' + st + '%"></i></div></div>';
@@ -5241,8 +5431,11 @@ function runAct(name){
     case 'assassinate': {
       const gov = notable(W.gov);
       if(gov && gov.alive && gov.role === 'governor') {
-        chron('law', 'OUTRAGE. — Governor ' + nName(gov) + ' was shot down ' + pickH(CONTENT.gazette.assassinSpot) + '. The assassin rode east, or west, or is among us.', S0.x, S0.z, 10);
-        killNotable(gov, 'shot', day);
+        const spot = pickH(CONTENT.gazette.assassinSpot);
+        killNotable(gov, 'shot', day, {kind:'governor.assassinated', actors:[gov.id],
+          headline:'OUTRAGE. — Governor ' + nName(gov) + ' was shot down ' + spot + '. The assassin rode east, or west, or is among us.',
+          scene:{title:'A Shot at the Governor', setup:'Governor ' + nName(gov) + ' comes into view ' + spot + '. A shot rings out.',
+            outcome:nName(gov) + ' is dead. The governorship passes before the blood is dry.'}});
         S0.unrest = Math.min(100, S0.unrest + 18);
         maybeWar(day, 'the murder of the governor', 38);
       }
@@ -5934,9 +6127,11 @@ function gangRobs(day){
   if(train){
     railPointAt(W.rail.dist * rr(R, 0.25, 0.75), _rp);
     W.lastDeathSpot = {x: _rp.x, z: _rp.z};
-    chron('law', 'THE TRAIN ROBBED. — ' + gangLine() + ' put a tie across the rails at dusk, emptied the express car of ' + money(take) + ', and thanked the passengers for their patience. The company is offering its own reward, in addition to everyone else’s.', _rp.x, _rp.z, 10);
+    chron('law', 'THE TRAIN ROBBED. — ' + gangLine() + ' put a tie across the rails at dusk, emptied the express car of ' + money(take) + ', and thanked the passengers for their patience. The company is offering its own reward, in addition to everyone else’s.', _rp.x, _rp.z, 10,
+      {kind:'gang.robbery', actors:leader?[leader.id]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the railroad express of ' + money(take)}]:[]});
   } else {
-    chron('law', 'THE BANK AT ' + tgt.name.toUpperCase() + ' ROBBED IN OPEN DAY. — ' + gangLine() + ' came up Main Street at a walk, dynamited the vault, and left at a gallop with ' + money(take) + '. One teller fainted; the clock was shot in passing.', tgt.x, tgt.z, 10);
+    chron('law', 'THE BANK AT ' + tgt.name.toUpperCase() + ' ROBBED IN OPEN DAY. — ' + gangLine() + ' came up Main Street at a walk, dynamited the vault, and left at a gallop with ' + money(take) + '. One teller fainted; the clock was shot in passing.', tgt.x, tgt.z, 10,
+      {kind:'gang.robbery', actors:leader?[leader.id]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the bank at ' + tgt.name + ' of ' + money(take)}]:[]});
   }
   // the ride home
   g.state = 'homing';
@@ -5949,7 +6144,9 @@ function gangRobs(day){
   const bold = marshal && (marshal.traits.includes('bold') || W.order > 55);
   if(bold){
     W.gangShowdown = day + ri(R, 10, 26);
-    chron('law', 'THE MARSHAL RIDES. — ' + (marshal?nName(marshal):'The law') + ' took ' + ri(R,8,14) + ' sworn men and three days’ bacon and went into the breaks after ' + gangLine() + '.', S0.x, S0.z, 8);
+    chron('law', 'THE MARSHAL RIDES. — ' + (marshal?nName(marshal):'The law') + ' took ' + ri(R,8,14) + ' sworn men and three days’ bacon and went into the breaks after ' + gangLine() + '.', S0.x, S0.z, 8,
+      {kind:'gang.pursuit', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        fame:marshal?[{id:marshal.id, points:10, deed:'Rode into the breaks after ' + g.name}]:[]});
   } else if(gov && W.treasury > 2000 && (gov.traits.includes('craven') || chance(R,0.3))){
     W.treasury -= 1200;
     g.dormantUntil = day + 1800;
@@ -5963,6 +6160,8 @@ function tickGangShowdown(day){
   const g = W.gang, R = W.rng.hist;
   const marshal = officialOf('marshal') || officialOf('sheriff');
   const leader = notable(g.leader);
+  const marshalName = marshal ? nName(marshal) : 'The law';
+  const leaderName = leader ? nName(leader) : g.name;
   const winP = clamp(0.45 + W.order*0.003 - (g.legend ? 0.12 : 0) + (W.settlements[0].hasJail ? 0.04 : 0), 0.25, 0.8);
   if(chance(R, winP)){
     const back = Math.round(g.loot * 0.6);
@@ -5975,12 +6174,20 @@ function tickGangShowdown(day){
     if(g.hideMesh) g.hideMesh.visible = false;
     W.order = Math.min(100, W.order + 15);
     W.lastDeathSpot = {x: g.x, z: g.z};
-    chron('law', 'THE GANG IS BROKEN. — The marshal’s party came out of the breaks driving ' + gangLine() + '’s horses and carrying its history. ' + money(back) + ' recovered. Bells were rung.', g.x, g.z, 10);
+    chron('law', 'THE GANG IS BROKEN. — The marshal’s party came out of the breaks driving ' + gangLine() + '’s horses and carrying its history. ' + money(back) + ' recovered. Bells were rung.', g.x, g.z, 10,
+      {kind:'gang.showdown', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        fame:marshal?[{id:marshal.id, points:45, deed:'Broke ' + g.name + ' and recovered ' + money(back)}]:[],
+        scene:{title:'Showdown in the Breaks', setup:marshalName + ' closes on ' + leaderName + ' in a dry wash.',
+          outcome:marshalName + ' comes out with the gang’s horses. ' + leaderName + ' will not ride again.'}});
   } else {
     if(marshal && chance(R, 0.6)) killNotable(marshal, 'gunfight', day);
     g.legend = true;
     W.order = Math.max(0, W.order - 10);
-    chron('law', 'DISASTER IN THE BREAKS. — The posse was ambushed in a dry wash. ' + gangLine() + ' rides taller than ever, and the county prints its poster larger.', g.x, g.z, 9);
+    chron('law', 'DISASTER IN THE BREAKS. — The posse was ambushed in a dry wash. ' + gangLine() + ' rides taller than ever, and the county prints its poster larger.', g.x, g.z, 9,
+      {kind:'gang.showdown', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        fame:leader?[{id:leader.id, points:35, deed:'Defeated ' + marshalName + ' in the breaks'}]:[],
+        scene:{title:'Showdown in the Breaks', setup:marshalName + ' closes on ' + leaderName + ' in a dry wash.',
+          outcome:leaderName + ' springs the ambush. The law’s party does not hold the ground.'}});
   }
 }
 // the district court sits when it has someone to sit over
@@ -6772,14 +6979,93 @@ function rebuildRivers(){
    THE AUTO-DIRECTOR & THE LEDGERS
    ======================================================================= */
 const DIR = { until:0, cool:{}, idleAt:0 };
+const SCN = { queue:null, active:null, group:null, resumeSpeed:0, userChanged:false };
+function queueStoryScene(e){
+  if(!SCN.active && !SCN.queue) SCN.queue = e;
+}
+function ensureStorySceneGroup(){
+  if(SCN.group && SCN.group.parent === scene) return SCN.group;
+  const group = new THREE.Group();
+  for(let i=0;i<2;i++){
+    const rider = new THREE.Mesh(TPL.rider, MAT.world);
+    rider.castShadow = true;
+    rider.scale.setScalar(4);
+    group.add(rider);
+  }
+  group.visible = false;
+  scene.add(group);
+  SCN.group = group;
+  return group;
+}
+function finishStoryScene(restoreSpeed){
+  const active = SCN.active;
+  SCN.active = null; SCN.queue = null;
+  if(SCN.group) SCN.group.visible = false;
+  document.body.classList.remove('storyScene');
+  hideBeatCard();
+  syncCamFrame(false);
+  if(active && restoreSpeed && !SCN.userChanged) setSpeed(SCN.resumeSpeed, 'scene');
+  SCN.userChanged = false;
+}
+function resetStoryScenes(restoreSpeed){
+  if(SCN.active) finishStoryScene(restoreSpeed);
+  SCN.queue = null; SCN.group = null;
+  document.body.classList.remove('storyScene');
+}
+function beginStoryScene(e, nowMs){
+  SCN.queue = null;
+  SCN.active = {event:e, start:nowMs, until:nowMs+10000, inputAt:CAM.lastInput, outcomeShown:false};
+  SCN.resumeSpeed = W.clock.speed;
+  SCN.userChanged = false;
+  setSpeed(0, 'scene');
+  e.consumed = true;
+  DIR.until = nowMs + 10500;
+  CAM.follow = null;
+  const h = xmur3(W.seed + ':scene:' + e.id)();
+  const angle = (h/4294967296) * Math.PI * 2;
+  SCN.active.angle = angle;
+  flyToQuiet(e.x, e.z, 170);
+  CAM.focus.copy(CAM.focusT);
+  CAM.t = CAM.tT;
+  CAM.yawT = angle + Math.PI*0.5;
+  hideInspector();
+  ensureStorySceneGroup().visible = true;
+  document.body.classList.add('storyScene');
+  syncCamFrame(true);
+  showBeatCard(e, e.scene.setup, e.scene.title + ' · THE STAKES');
+}
+function storySceneFrame(nowMs){
+  if(!SCN.active && SCN.queue) beginStoryScene(SCN.queue, nowMs);
+  const a = SCN.active;
+  if(!a) return false;
+  if(CAM.lastInput > a.inputAt){ finishStoryScene(true); return false; }
+  const e = a.event, f = clamp01((nowMs-a.start)/(a.until-a.start));
+  const group = ensureStorySceneGroup();
+  group.position.set(e.x, 0, e.z);
+  const dx = Math.cos(a.angle), dz = Math.sin(a.angle);
+  const sep = lerp(20, 11, smooth(Math.min(1,f*2)));
+  const left = group.children[0], right = group.children[1];
+  left.position.set(-dx*sep, hAt(e.x-dx*sep,e.z-dz*sep)+0.1, -dz*sep);
+  right.position.set(dx*sep, hAt(e.x+dx*sep,e.z+dz*sep)+0.1, dz*sep);
+  left.rotation.y = Math.atan2(dx, dz);
+  right.rotation.y = Math.atan2(-dx, -dz);
+  const pulse = f > 0.42 && f < 0.55 ? 1 + 0.08*Math.sin(nowMs/45) : 1;
+  left.scale.setScalar(4*pulse); right.scale.setScalar(4*pulse);
+  if(f >= 0.58 && !a.outcomeShown){
+    a.outcomeShown = true;
+    showBeatCard(e, e.scene.outcome, e.scene.title + ' · THE OUTCOME');
+  }
+  if(nowMs >= a.until){ finishStoryScene(true); return false; }
+  return true;
+}
 function flyToQuiet(x, z, alt){
   CAM.focusT.set(clamp(x,-2850,2850), 0, clamp(z,-2850,2850));
   if(alt) CAM.tT = tFromAlt(alt);
   CAM.intro = false;
 }
-function showBeatCard(e){
+function showBeatCard(e, text, label){
   const el = document.getElementById('beatCard');
-  el.innerHTML = '<span class="d">' + dateStr(e.day) + '</span>' + e.text;
+  el.innerHTML = '<span class="d">' + dateStr(e.day) + (label ? ' · ' + label : '') + '</span>' + (text||e.text) + actorLinks(e);
   el.style.display = 'block';
 }
 function hideBeatCard(){ document.getElementById('beatCard').style.display = 'none'; }
@@ -6788,6 +7074,7 @@ function syncCamFrame(on){
 }
 function directorFrame(nowMs, dt){
   if(!W.beats) return;
+  if(SCN.active || SCN.queue) return;
   const engaged = watchMode || directorOn;
   if(!engaged){ syncCamFrame(false); return; }
   const idleFor = nowMs - CAM.lastInput;
@@ -7136,6 +7423,7 @@ function initInput(){
     else if(k==='c'){ if(W && W.sceneReady) setWatch(!watchMode); }
     else if(k==='g'){ setDirector(!directorOn); }
     else if(k==='escape'){
+      if(SCN.active){ finishStoryScene(true); return; }
       hideInspector(); CAM.follow = null;
       if(W && W.pendingAct){ W.pendingAct = null; document.body.classList.remove('aiming'); }
       if(watchMode) setWatch(false);
@@ -7318,7 +7606,11 @@ function updateHUD(){
     img.style.display = 'inline-block';
   } else img.style.display = 'none';
 }
-function setSpeed(i){
+function setSpeed(i, source){
+  if(SCN.active && source !== 'scene'){
+    SCN.userChanged = true;
+    finishStoryScene(false);
+  }
   W.clock.speed = clamp(i, 0, SPEEDS.length-1);
   document.querySelectorAll('#speeds button').forEach(b => b.classList.toggle('on', +b.dataset.s === W.clock.speed));
 }
@@ -7410,6 +7702,10 @@ function initUI(){
       if(n) inspectNotable(n);
     }
   });
+  document.getElementById('beatCard').addEventListener('click', e => {
+    const t = e.target.closest('[data-nid]');
+    if(t){ const n = notable(+t.dataset.nid); if(n) inspectNotable(n); }
+  });
   document.getElementById('govChip').addEventListener('click', ()=>{
     const g = notable(W.gov);
     if(g) inspectNotable(g);
@@ -7451,6 +7747,7 @@ async function forgeWorld(seed){
   if(forging) return;
   forging = true;
   try {
+    resetStoryScenes(false);
     const lo = document.getElementById('loading');
     lo.classList.remove('hidden'); lo.style.opacity = 1;
     document.getElementById('steps').innerHTML = '';
@@ -7561,9 +7858,10 @@ function updateLOD(){
   }
 }
 let prevMs = performance.now(), frameN = 0;
-function tick(dt, nowMs){
+function tick(dt, nowMs, present){
+  present = present !== false;
   const sp = SPEEDS[W.clock.speed];
-  simAdvance(sp*dt);
+  if(present) simAdvance(sp*dt);
   const nightNow = SH.uNightG.value > 0.45;
   renderTod = (renderTod + (dt/300) * (nightNow ? 2.9 : 1)) % 1;
   updateAgents();
@@ -7585,7 +7883,10 @@ function tick(dt, nowMs){
   updateFx(nowMs);
   ambientFrame(dt, nowMs);
   gangFrame();
-  directorFrame(nowMs, dt);
+  if(present){
+    storySceneFrame(nowMs);
+    directorFrame(nowMs, dt);
+  }
   refreshGraphs();
   if(W.riverDirty && nowMs - (W.lastRiverMs||0) > 1500){
     W.riverDirty = false;
@@ -7645,11 +7946,17 @@ window.GAZETTE = {
     buildings: countBuildings(), trees: W.flora ? W.flora.cwood.length+W.flora.pine.length : 0, seed: W.seed, seat: W.seatName,
     county: W.countyName, badlands: !!W.hasBadlands,
     treasury: Math.round(W.treasury||0), pop: Math.round(W.terrPop||0),
-    agents: W.agents ? W.agents.length : 0, chron: W.chron ? W.chron.length : 0 }; },
+    agents: W.agents ? W.agents.length : 0, chron: W.chron ? W.chron.length : 0,
+    legends: W.notables ? W.notables.filter(isLegend).length : 0 }; },
   simDays(n){
     if(!W || !W.sceneReady) return 'not ready';
-    simAdvance(n);
-    tick(0.0001, performance.now());
+    if(SCN.active) finishStoryScene(true);
+    SCN.queue = null;
+    const allowScenes = W.allowScenes;
+    W.allowScenes = false;
+    try { simAdvance(n); }
+    finally { W.allowScenes = allowScenes; }
+    tick(0.0001, performance.now(), false);
     return 'advanced ' + n + ' days to day ' + Math.round(W.clock.day);
   },
   step(n){
@@ -7685,8 +7992,10 @@ window.GAZETTE = {
     return 'done';
   },
   officials(){
-    return livingNotables().filter(n=>n.role).map(n => ({role: n.role, name: nName(n), age: Math.round(n.age)}));
+    return livingNotables().filter(n=>n.role).map(n => ({role:n.role, name:nName(n), age:Math.round(n.age), fame:n.fame||0, legend:isLegend(n)}));
   },
+  legends(){ return W.notables.filter(isLegend).map(n => ({name:nName(n), role:roleOf(n), fame:n.fame, deeds:n.deeds.map(d=>d.text)})); },
+  scene(){ return SCN.active ? {kind:SCN.active.event.kind, phase:SCN.active.outcomeShown?'outcome':'setup'} : SCN.queue ? {kind:SCN.queue.kind, phase:'queued'} : null; },
   rail(){
     if(!W.rail) return null;
     return { co: W.rail.co, builtM: Math.round(W.rail.builtM), dist: Math.round(W.rail.dist),
@@ -7694,7 +8003,7 @@ window.GAZETTE = {
       bypassed: (W.railBypassed||[]).map(i=>W.settlements[i] && W.settlements[i].name) };
   },
   strikes(){ return W.settlements.filter(s=>s.strike || s.ghost).map(s=>({name:s.name, ghost:!!s.ghost, richness: s.strike ? +s.strike.richness.toFixed(2) : 0})); },
-  gang(){ const g = W.gang; return g ? {name:g.name, state:g.state, loot:Math.round(g.loot), legend:g.legend, leader: notable(g.leader) ? nName(notable(g.leader)) : null} : null; },
+  gang(){ const g = W.gang, leader = g && notable(g.leader); return g ? {name:g.name, state:g.state, loot:Math.round(g.loot), legend:g.legend||isLegend(leader), leader:leader?nName(leader):null} : null; },
   outfits(){ return W.outfits.map(o => ({name: o.brand.name, sur: o.sur, standing: Math.round(o.standing), might: o.might, wealth: Math.round(o.wealth), herd: Math.round(o.herd||0), exiled: o.exiled})); },
   // read-only balance snapshot: aggregates chron by class in 5-year buckets, no rng draws
   metrics(){
