@@ -144,6 +144,9 @@ body.aiming #app canvas{ cursor:crosshair; }
 .storyFilter{ position:sticky; top:-9px; z-index:2; background:#e8dcc0; padding:4px 0 7px; border-bottom:1px solid var(--rule); }
 .storyFilter label{ display:block; font-family:var(--sans); font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink2); margin-bottom:3px; }
 .storyFilter select{ width:100%; font-family:var(--serif); font-size:11px; color:var(--ink); background:#f2e9d2; border:1px solid var(--rule); padding:4px; }
+.storyClear{ width:100%; margin-top:5px; min-height:30px; font-family:var(--sans); font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--rust); background:transparent; border:1px solid var(--rule); cursor:pointer; }
+.storyClear:hover{ color:var(--paper); background:var(--rust); border-color:var(--rust); }
 .storySect{ font-family:var(--disp); font-size:11px; letter-spacing:0.06em; margin:11px 0 5px; padding-bottom:3px; border-bottom:1px solid var(--rule); }
 .storyCard{ border:1px solid rgba(141,127,102,0.55); background:rgba(242,233,210,0.55); padding:7px 8px; margin-bottom:6px; cursor:pointer; }
 .storyCard:hover{ background:rgba(139,58,46,0.08); }
@@ -280,6 +283,7 @@ body.storyScene #camFrame{ border-color:rgba(139,58,46,0.75); }
   #gzClose{ display:block; width:44px; height:44px; }
   #gzModes button{ min-height:40px; }
   #gzChips button{ min-height:36px; }
+  .storyClear{ min-height:44px; }
   #drawer{ transform:translateX(-262px); opacity:0.2; }
   #drawer.open{ transform:none; opacity:1; }
 }
@@ -7302,7 +7306,9 @@ function storyFilterHtml(proj){
     const n = notable(r.id);
     html += '<option value="' + r.id + '"' + (GZ.personId===r.id?' selected':'') + '>' + nName(n) + (n.alive?'':' (deceased)') + '</option>';
   });
-  return html + '</select></div>';
+  html += '</select>';
+  if(GZ.personId) html += '<button class="storyClear" data-clear-story-person>× Show all characters</button>';
+  return html + '</div>';
 }
 function storyCardHtml(rec){
   const t = rec.thread, latest = rec.events[rec.events.length-1];
@@ -7355,6 +7361,8 @@ function renderStories(){
   }
   const select = host.querySelector('#storyPerson');
   if(select) select.addEventListener('change', ()=>{ GZ.personId = select.value ? +select.value : null; renderStories(); });
+  const clearPerson = host.querySelector('[data-clear-story-person]');
+  if(clearPerson) clearPerson.addEventListener('click', ()=>{ GZ.personId = null; renderStories(); });
   host.querySelectorAll('[data-thread-id]').forEach(el => el.addEventListener('click', ()=> openStoryThread(el.dataset.threadId)));
   host.querySelectorAll('[data-person-thread]').forEach(el => el.addEventListener('click', ()=> openPersonStory(+el.dataset.personThread)));
   const back = host.querySelector('[data-story-back]');
