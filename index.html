@@ -133,9 +133,13 @@ body.aiming #app canvas{ cursor:crosshair; }
   color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
 #shareBtn:hover{ opacity:1; color:var(--rust); }
 #shareBtn.copied{ opacity:1; color:var(--rust); }
+#settingsBtn{ display:flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
+  background:transparent; border:0; color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
+#settingsBtn:hover, #settingsBtn.on{ opacity:1; color:var(--rust); }
+#settingsBtn svg{ width:20px; height:20px; }
 #gazetteBtn{ display:none; align-items:center; padding:0; background:transparent; border:0; color:var(--ink); cursor:pointer; font-family:var(--disp); font-size:17px; }
 #gzClose{ display:none; position:absolute; top:5px; right:7px; z-index:2; width:32px; height:32px; border:0; background:transparent; color:var(--ink2); cursor:pointer; }
-#hudR{ padding-right:72px; }
+#hudR{ padding-right:104px; }
 #loadGh{ margin-top:16px; font-size:11px; font-style:italic; }
 #loadGh a{ color:var(--ink2); }
 #graphsBox{ flex:1; display:none; padding:6px; } #graphsCv{ width:100%; height:100%; }
@@ -213,6 +217,33 @@ body.aiming #app canvas{ cursor:crosshair; }
 #ovRow button{ font-family:var(--sans); font-size:10px; padding:5px 2px; background:var(--paper2); border:1px solid var(--rule); cursor:pointer; color:var(--ink2); }
 #ovRow button.on{ background:var(--rust); color:var(--paper); border-color:var(--rust); }
 
+/* ---------- atmosphere settings ---------- */
+#settingsPanel{ position:fixed; top:72px; right:14px; width:292px; z-index:13; display:none;
+  background:linear-gradient(180deg,#eee3c8,#e4d7b8); border:1px solid #a5947a;
+  box-shadow:0 7px 24px rgba(16,10,4,0.45); padding:12px 13px 14px; }
+#settingsPanel.open{ display:block; }
+#settingsPanel::before{ content:''; position:absolute; inset:4px; border:1px solid rgba(90,74,54,0.4); pointer-events:none; }
+#settingsHead{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px double var(--rule); padding:0 1px 7px; }
+#settingsHead h2{ font-family:var(--disp); font-size:15px; font-weight:400; }
+#settingsClose{ border:0; background:transparent; color:var(--ink2); font-size:15px; cursor:pointer; padding:1px 3px; }
+#settingsClose:hover{ color:var(--rust); }
+.settingSect{ margin-top:11px; }
+.settingSect h3{ font-family:var(--disp); font-size:11.5px; font-weight:400; border-bottom:1px solid var(--rule); padding-bottom:3px; margin-bottom:6px; }
+.settingChoices{ display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.settingChoices button, .settingPresets button{ font-family:var(--sans); font-size:10px; letter-spacing:0.03em; padding:5px 3px;
+  background:var(--paper2); border:1px solid var(--rule); color:var(--ink2); cursor:pointer; }
+.settingChoices button:hover, .settingPresets button:hover{ color:var(--ink); background:#eadfc4; }
+.settingChoices button.on, .settingPresets button.on{ color:var(--paper); background:var(--ink); border-color:var(--ink); }
+.settingNote{ font-size:10px; line-height:1.3; color:var(--ink2); font-style:italic; margin-top:6px; }
+.settingRange{ margin-top:8px; }
+.settingRange label{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--ink); }
+.settingRange output{ color:var(--ink2); font-style:italic; }
+.settingRange input{ width:100%; accent-color:var(--rust); height:17px; }
+.settingPresets{ display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:4px; }
+@media (max-width:640px){
+  #settingsPanel{ top:60px; left:10px; right:10px; width:auto; }
+}
+
 /* ---------- inspector ---------- */
 #inspector{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:11; width:320px; max-height:46vh;
   overflow-y:auto; display:none; background:linear-gradient(180deg,#eee3c8,#e6dabd); border:1px solid #a5947a;
@@ -287,8 +318,9 @@ body.storyScene #camFrame{ border-color:rgba(139,58,46,0.75); }
   #drawer{ transform:translateX(-262px); opacity:0.2; }
   #drawer.open{ transform:none; opacity:1; }
 }
-body.uiHidden #hud, body.uiHidden #gazette, body.uiHidden #drawer, body.uiHidden #inspector, body.uiHidden #warStrip{ display:none !important; }
+body.uiHidden #hud, body.uiHidden #gazette, body.uiHidden #drawer, body.uiHidden #inspector, body.uiHidden #warStrip, body.uiHidden #settingsPanel{ display:none !important; }
 body.watch #hud, body.watch #gazette, body.watch #drawer, body.watch #inspector, body.watch #warStrip{ display:none !important; }
+body.watch #settingsPanel{ display:none !important; }
 body.watch #watchDate, body.watch #camFrame{ display:block; }
 </style>
 </head>
@@ -301,7 +333,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   <div class="col" id="hudL">
     <div class="hudline"><span id="seasonGlyph">☀</span><b id="dateTxt">—</b><span id="weatherIco"></span></div>
     <div id="speeds">
-      <button data-s="0" title="Pause (space)">⏸</button><button data-s="1" title="Crawl — a day every ten seconds (1)">·</button><button data-s="2" class="on" title="One day per second (2)">▶</button>
+      <button data-s="0" title="Pause (space)">⏸</button><button data-s="1" title="Cinematic crawl — a day every 200 seconds (1)">·</button><button data-s="2" class="on" title="One day per second (2)">▶</button>
       <button data-s="3" title="Five days per second (3)">▶▶</button><button data-s="4" title="Thirty days per second (4)">▶▶▶</button><button data-s="5" title="Full gallop — 120 days per second (5)">▶▶▶▶</button>
     </div>
   </div>
@@ -315,12 +347,38 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   </div>
   <div id="topActions">
     <button id="gazetteBtn" type="button" title="Open the Gazette" aria-label="Open the Gazette">G</button>
+    <button id="settingsBtn" type="button" title="Atmosphere settings" aria-label="Atmosphere settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3.1 1.3v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3.1-1.3l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-1.3-3.1h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 1.3-3.1l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3.1-1.3v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3.1 1.3l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 1.3 3.1h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-1.3 3.1Z"/></svg>
+    </button>
     <button id="shareBtn" type="button" title="Copy a link to this world">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share this world"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
     <a id="ghIcon" href="https://github.com/pbzona/wild-wild-web" target="_blank" rel="noopener" title="Source on GitHub — pbzona/wild-wild-web">
       <svg viewBox="0 0 16 16" width="24" height="24" aria-label="GitHub"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
     </a>
+  </div>
+</div>
+<div id="settingsPanel" aria-hidden="true">
+  <div id="settingsHead"><h2>Atmosphere</h2><button id="settingsClose" type="button" aria-label="Close atmosphere settings">✕</button></div>
+  <div class="settingSect">
+    <h3>Rendered weather</h3>
+    <div class="settingChoices" id="weatherChoices">
+      <button data-weather="auto" class="on">Auto</button><button data-weather="clear">Clear</button>
+      <button data-weather="overcast">Overcast</button><button data-weather="rain">Rain</button>
+      <button data-weather="storm">Storm</button><button data-weather="snow">Snow</button>
+      <button data-weather="dust">Dust</button>
+    </div>
+    <div class="settingNote">A manual choice changes the sky, haze, and precipitation for screenshots. The territory's actual weather and its consequences continue underneath.</div>
+  </div>
+  <div class="settingSect">
+    <h3>Sky clock</h3>
+    <div class="settingChoices" id="todModes"><button data-tod-mode="auto" class="on">Auto</button><button data-tod-mode="hold">Hold</button></div>
+    <div class="settingRange"><label for="todRange"><span>Time of day</span><output id="todValue">Dawn</output></label><input id="todRange" type="range" min="0" max="0.999" step="0.001" value="0.34"></div>
+    <div class="settingPresets" id="todPresets">
+      <button data-tod="0.27">Dawn</button><button data-tod="0.50">Noon</button>
+      <button data-tod="0.75">Dusk</button><button data-tod="0.90">Night</button>
+    </div>
+    <div class="settingNote">Auto resumes the slow visual cycle. Hold freezes the sky without changing the calendar or simulation.</div>
   </div>
 </div>
 <div id="warStrip"></div>
@@ -441,7 +499,7 @@ const N = 512;                  // heightfield grid
 const CELL = W_SIZE / N;
 const RES = 384;                // terrain render mesh resolution
 const CHUNKS = 6;               // flora chunk grid
-const SPEEDS = [0, 0.1, 1, 5, 30, 120];   // sim-days per real second
+const SPEEDS = [0, 0.005, 1, 5, 30, 120]; // sim-days per real second
 const YEAR0 = 1866;             // sim day 0 = March 1st, 1866
 // MONTHS / SEASONS / GLYPHS now live in CONTENT.calendar (aliased below)
 
@@ -2225,8 +2283,14 @@ const WATERU = {
   uFogCol:{value:new THREE.Color(0xd8d2b4)}, uFogNear:{value:900}, uFogFar:{value:6800}, uNight:{value:0}
 };
 let renderTod = 0.34;      // visual time-of-day, decoupled from sim speed
+const VIEW_WEATHER = ['auto','clear','overcast','rain','storm','snow','dust'];
+let viewSettings = { weather:'auto', todMode:'auto', tod:0.34 };
 let fpsAvg = 60, degradeStep = 0, degradeTimer = 0;
 const ARCH_CACHE = new Map();
+
+function visualWeather(){
+  return viewSettings.weather === 'auto' ? (W && W.weather ? W.weather.state : 'clear') : viewSettings.weather;
+}
 
 function initRenderer(){
   renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
@@ -3707,7 +3771,7 @@ function buildPrecip(){
 function precipFrame(dt){
   const p = W.precip;
   if(!p) return;
-  const st = W.weather ? W.weather.state : 'clear';
+  const st = visualWeather();
   const on = st==='rain' || st==='storm' || st==='snow';
   p.visible = on && CAM.radius < 1600;
   if(!p.visible) return;
@@ -7060,7 +7124,8 @@ function buildAmbient(){
 const _q4 = new THREE.Quaternion(), _e4 = new THREE.Euler(), _v4 = new THREE.Vector3(), _p4 = new THREE.Vector3();
 function ambientFrame(dt, nowMs){
   W.windAng = (W.windAng === undefined ? 0.8 : W.windAng) + dt*0.03*Math.sin(nowMs/11000 + 2);
-  const windK = W.weather && (W.weather.state==='storm'||W.weather.state==='dust') ? 2.4 : 1;
+  const wst = visualWeather();
+  const windK = wst==='storm'||wst==='dust' ? 2.4 : 1;
   // tumbleweeds roll near the camera over open country
   if(W.tumbleMesh){
     const R = Math.random;
@@ -7694,6 +7759,7 @@ function initInput(){
     else if(k==='c'){ if(W && W.sceneReady) setWatch(!watchMode); }
     else if(k==='g'){ setDirector(!directorOn); }
     else if(k==='escape'){
+      if(settingsOpen){ setSettingsOpen(false); return; }
       if(SCN.active){ finishStoryScene(true); return; }
       if(document.body.classList.contains('gzOpen')){ setGazetteOpen(false); return; }
       hideInspector(); CAM.follow = null;
@@ -7783,7 +7849,7 @@ function updateSkyAndLight(nowSec){
     const le = Math.max(mEl, 0.3);
     _lightDir.set(Math.cos(le)*Math.cos(mAz), Math.sin(le), Math.cos(le)*Math.sin(mAz));
   }
-  const wst = W.weather ? W.weather.state : 'clear';
+  const wst = visualWeather();
   let wMul = wst==='overcast' ? 0.72 : wst==='rain' ? 0.55 : wst==='storm' ? 0.45 : wst==='snow' ? 0.62 : wst==='dust' ? 0.5 : 1;
   if(wst === 'storm'){
     if(!W._flash && Math.random() < 0.006) W._flash = nowSec + 0.13;
@@ -7856,27 +7922,74 @@ function seasonOf(day){ return Math.floor((((day%360)+360)%360)/90); }
 function notable(id){ return id ? W.notables[id-1] : null; }
 let lastDateStr = '';
 let watchMode = false, directorOn = true;
+let settingsOpen = false;
+function todLabel(t){
+  if(t < 0.23 || t >= 0.82) return 'Night';
+  if(t < 0.32) return 'Dawn';
+  if(t < 0.68) return 'Daylight';
+  return 'Dusk';
+}
+function syncViewSettings(){
+  document.querySelectorAll('#weatherChoices button').forEach(b => b.classList.toggle('on', b.dataset.weather === viewSettings.weather));
+  document.querySelectorAll('#todModes button').forEach(b => b.classList.toggle('on', b.dataset.todMode === viewSettings.todMode));
+  document.querySelectorAll('#todPresets button').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.tod - viewSettings.tod) < 0.001));
+  const range = document.getElementById('todRange');
+  if(range) range.value = viewSettings.tod;
+  const value = document.getElementById('todValue');
+  if(value) value.textContent = todLabel(viewSettings.tod);
+}
+function setWeatherView(state){
+  viewSettings.weather = VIEW_WEATHER.includes(state) ? state : 'auto';
+  syncViewSettings();
+  if(W && W.sceneReady) updateHUD();
+}
+function setTodView(mode, value){
+  if(mode === 'auto'){
+    viewSettings.todMode = 'auto';
+    viewSettings.tod = renderTod;
+  } else {
+    viewSettings.todMode = 'hold';
+    viewSettings.tod = clamp(value === undefined ? renderTod : +value, 0, 0.999);
+    renderTod = viewSettings.tod;
+  }
+  syncViewSettings();
+}
+function resetViewSettings(){
+  viewSettings.weather = 'auto';
+  viewSettings.todMode = 'auto';
+  viewSettings.tod = 0.34;
+  renderTod = 0.34;
+  syncViewSettings();
+}
+function setSettingsOpen(on){
+  settingsOpen = !!on;
+  const panel = document.getElementById('settingsPanel');
+  if(panel) panel.classList.toggle('open', settingsOpen), panel.setAttribute('aria-hidden', String(!settingsOpen));
+  const btn = document.getElementById('settingsBtn');
+  if(btn) btn.classList.toggle('on', settingsOpen);
+}
 function updateHUD(){
   const ds = dateStr(W.clock.day);
-  if(ds === lastDateStr) return;
-  lastDateStr = ds;
-  document.getElementById('dateTxt').textContent = ds;
-  document.getElementById('gzDate').textContent = ds + ' — ' + W.countyName;
-  document.getElementById('watchDate').textContent = ds;
-  document.getElementById('seasonGlyph').textContent = GLYPHS[seasonOf(W.clock.day)];
-  const wst = W.weather ? W.weather.state : 'clear';
+  if(ds !== lastDateStr){
+    lastDateStr = ds;
+    document.getElementById('dateTxt').textContent = ds;
+    document.getElementById('gzDate').textContent = ds + ' — ' + W.countyName;
+    document.getElementById('watchDate').textContent = ds;
+    document.getElementById('seasonGlyph').textContent = GLYPHS[seasonOf(W.clock.day)];
+    document.getElementById('bankTxt').textContent = money(W.treasury || 0);
+    let pop = 0; W.settlements.forEach(s => pop += s.pop);
+    W.terrPop = pop;
+    document.getElementById('popTxt').textContent = Math.round(pop).toLocaleString();
+    const g = notable(W.gov);
+    document.getElementById('govName').textContent = g ? 'Gov. ' + g.given + ' ' + g.sur : '—';
+    const img = document.querySelector('#govChip img');
+    if(g && g.outfit >= 0 && W.outfits[g.outfit]){
+      img.src = W.outfits[g.outfit].brand.url;
+      img.style.display = 'inline-block';
+    } else img.style.display = 'none';
+  }
+  const wst = visualWeather();
   document.getElementById('weatherIco').textContent = {clear:'', overcast:'☁', rain:'🌧', storm:'⛈', snow:'🌨', dust:'🌪'}[wst] || '';
-  document.getElementById('bankTxt').textContent = money(W.treasury || 0);
-  let pop = 0; W.settlements.forEach(s => pop += s.pop);
-  W.terrPop = pop;
-  document.getElementById('popTxt').textContent = Math.round(pop).toLocaleString();
-  const g = notable(W.gov);
-  document.getElementById('govName').textContent = g ? 'Gov. ' + g.given + ' ' + g.sur : '—';
-  const img = document.querySelector('#govChip img');
-  if(g && g.outfit >= 0 && W.outfits[g.outfit]){
-    img.src = W.outfits[g.outfit].brand.url;
-    img.style.display = 'inline-block';
-  } else img.style.display = 'none';
 }
 function setSpeed(i, source){
   if(SCN.active && source !== 'scene'){
@@ -7945,6 +8058,25 @@ function initUI(){
     clearTimeout(btn._t);
     btn._t = setTimeout(()=>{ btn.classList.remove('copied'); btn.title = 'Copy a link to this world'; }, 1400);
   });
+  document.getElementById('settingsBtn').addEventListener('click', ()=> setSettingsOpen(!settingsOpen));
+  document.getElementById('settingsClose').addEventListener('click', ()=> setSettingsOpen(false));
+  document.getElementById('weatherChoices').addEventListener('click', e => {
+    const b = e.target.closest('[data-weather]');
+    if(b) setWeatherView(b.dataset.weather);
+  });
+  document.getElementById('todModes').addEventListener('click', e => {
+    const b = e.target.closest('[data-tod-mode]');
+    if(b) setTodView(b.dataset.todMode);
+  });
+  document.getElementById('todRange').addEventListener('input', e => setTodView('hold', +e.target.value));
+  document.getElementById('todPresets').addEventListener('click', e => {
+    const b = e.target.closest('[data-tod]');
+    if(b) setTodView('hold', +b.dataset.tod);
+  });
+  document.addEventListener('pointerdown', e => {
+    const panel = document.getElementById('settingsPanel');
+    if(settingsOpen && !panel.contains(e.target) && e.target !== document.getElementById('settingsBtn')) setSettingsOpen(false);
+  });
   document.getElementById('gazetteBtn').addEventListener('click', ()=> setGazetteOpen(true));
   document.getElementById('gzClose').addEventListener('click', ()=> setGazetteOpen(false));
   document.getElementById('btnLabels').addEventListener('click', ()=> labelsOn = !labelsOn);
@@ -7966,6 +8098,7 @@ function initUI(){
   document.getElementById('btnExport').addEventListener('click', ()=>{ if(W && W.chron) exportChronicle(); });
   buildRatesPanel();
   buildActsPanel();
+  syncViewSettings();
   document.querySelectorAll('#ovRow button').forEach(b => {
     b.addEventListener('click', ()=> setOverlay(W.overlayMode === b.dataset.ov ? null : b.dataset.ov));
   });
@@ -8100,7 +8233,7 @@ async function forgeWorld(seed){
     CAM.pitchOff = CAM.pitchOffT = 0;
     CAM.t = 0.97; CAM.tT = 0.66; CAM.intro = true;
     CAM.lastInput = performance.now();
-    renderTod = 0.34;
+    resetViewSettings();
     setSpeed(2);
     lastDateStr = '';
     CAM.follow = null;
@@ -8142,7 +8275,8 @@ function tick(dt, nowMs, present){
   const sp = SPEEDS[W.clock.speed];
   if(present) simAdvance(sp*dt);
   const nightNow = SH.uNightG.value > 0.45;
-  renderTod = (renderTod + (dt/300) * (nightNow ? 2.9 : 1)) % 1;
+  if(viewSettings.todMode === 'hold') renderTod = viewSettings.tod;
+  else renderTod = (renderTod + (dt/300) * (nightNow ? 2.9 : 1)) % 1;
   updateAgents();
   if(W.rebuildQueue && W.rebuildQueue.size && nowMs - (W.lastRebuildMs||0) > 700){
     const s = W.rebuildQueue.values().next().value;
@@ -8256,7 +8390,16 @@ window.GAZETTE = {
   yaw(v){ CAM.yawT = v; CAM.yaw = v; },
   pitch(v){ CAM.pitchOffT = v; CAM.pitchOff = v; },
   cam(){ return { x: +CAM.focusT.x.toFixed(1), z: +CAM.focusT.z.toFixed(1), yaw: +CAM.yaw.toFixed(3), radius: Math.round(CAM.radius) }; },
-  tod(f){ renderTod = ((f%1)+1)%1; },
+  tod(f){
+    if(f === undefined) return {mode:viewSettings.todMode, value:renderTod};
+    setTodView('hold', ((f%1)+1)%1);
+    return renderTod;
+  },
+  weather(state){
+    if(state === undefined) return {mode:viewSettings.weather, state:visualWeather()};
+    setWeatherView(state);
+    return viewSettings.weather;
+  },
   day(d){ W.clock.day = d; },
   speed(i){ setSpeed(clamp(i,0,SPEEDS.length-1)); },
   watch(on){ setWatch(on === undefined ? !watchMode : !!on); return watchMode; },

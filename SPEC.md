@@ -63,7 +63,7 @@ Raycast click opens the Inspector (§15). Hotkeys: Space pause, 1–5 speeds, H 
 
 ## 6. Simulation architecture
 
-- Clock in fractional days; fixed-step accumulator; 1 tick = 1 sim-day. Speeds: pause / 0.1 / 1 / 5 / 30 / 120 sim-days per real second (at max, a year passes in 3 seconds; a governorship in under a minute).
+- Clock in fractional days; fixed-step accumulator; 1 tick = 1 sim-day. Speeds: pause / 0.005 / 1 / 5 / 30 / 120 sim-days per real second (the crawl setting gives wagons a grounded cinematic pace; at max, a year passes in 3 seconds and a governorship in under a minute).
 - System order per tick: Weather → Fires → Cholera → Rustlers → Omens → Gang → Railroad → Strikes → Landmarks → Economy/Population → Politics → Trade → Gazette flush.
 - Render decoupling: agents store route + departure day; the render loop interpolates positions from fractional sim-time, so motion is smooth at any speed.
 - Stability rule: every positive feedback loop ships a predator. Population ↑ → land scarcity. Bank ↑ → gang and rustler attention. Herd ↑ → overgrazing and the Big Die-Up. Boomtown ↑ → the vein always plays out. Outfit power ↑ → federal suspicion. Range war ↑ → federal troops force a peace. Target: 200 unattended sim-years stay in sane bounds and stay interesting.
@@ -150,7 +150,7 @@ An event bus emits beats with priorities (gang raid/train robbery 10, tornado 9,
 
 ## 14. Control panel
 
-Left drawer, four tabs. Time always in HUD: ⏸ ▶ ▶▶ ▶▶▶ ▶▶▶▶ → 0 / 0.1 / 1 / 5 / 30 / 120 sim-days per second.
+Left drawer, four tabs. Time always in HUD: ⏸ ▶ ▶▶ ▶▶▶ ▶▶▶▶ → 0 / 0.005 / 1 / 5 / 30 / 120 sim-days per second. A floating gear panel provides screenshot controls: rendered weather (Auto or a forced visual state) and the sky clock (Auto or a held time-of-day). Manual weather is render-only; the simulation continues using its seeded weather state and mechanics. Both controls reset to Auto on resurvey.
 
 - **Rates** — ×0.25–×4.0 sliders: Harvest yield · Birth/Mortality · Trade volume · Tax rate (5–30%, default 12%) · Cholera virulence/lethality · Disaster frequency · Rustler activity · Outfit aggression · Family fertility · Tall Tales Off/Low/High.
 - **Acts** (⌖ = cursor placement): Unleash cholera ⌖ · Start a fire ⌖ · Flash flood · Declare a drought · Send a twister ⌖ · Strike gold ⌖ · Rouse the gang · Raise a rustler camp ⌖ · Assassinate the governor · Contest the election · Broker a marriage · Bless the harvest · Send a comet · Charter a town ⌖ · Grant $5,000 · Raze building ⌖ · Charter the railroad.
