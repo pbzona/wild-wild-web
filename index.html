@@ -93,6 +93,10 @@ body.aiming #app canvas{ cursor:crosshair; }
 #gzHead{ padding:9px 12px 6px; border-bottom:3px double var(--rule); text-align:center; position:relative; }
 #gzMast{ font-family:var(--disp); font-size:17px; line-height:1; color:var(--ink); }
 #gzDate{ font-size:10px; font-style:italic; color:var(--ink2); margin-top:3px; letter-spacing:0.06em; }
+#gzModes{ display:flex; justify-content:center; gap:2px; margin-top:6px; }
+#gzModes button{ flex:1; font-family:var(--sans); font-size:9px; letter-spacing:0.06em; text-transform:uppercase;
+  border:1px solid var(--rule); background:transparent; color:var(--ink2); padding:3px 5px; cursor:pointer; }
+#gzModes button.on{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
 #gzChips{ display:flex; justify-content:center; gap:4px; margin-top:6px; flex-wrap:wrap; }
 #gzChips button{ font-family:var(--sans); font-size:9.5px; letter-spacing:0.05em; text-transform:uppercase;
   border:1px solid var(--rule); background:transparent; color:var(--ink2); padding:2px 7px; cursor:pointer; }
@@ -106,6 +110,7 @@ body.aiming #app canvas{ cursor:crosshair; }
   border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:5px 0; }
 .ce.era{ text-align:center; font-size:11.5px; letter-spacing:0.14em; text-transform:uppercase; margin:12px 0;
   color:var(--rust); font-weight:700; }
+.ce.era .actors{ text-transform:none; }
 .ce.law .d{ color:var(--rust); } .ce.frontier .d{ color:#7d2a20; } .ce.trade .d{ color:#6d5a2e; }
 .ce.fate .d{ color:#54406b; } .ce.myth .d{ color:#3c4a75; } .ce.rail .d{ color:#3f5a5e; }
 .ce.flavor{ color:#544a3c; font-style:italic; } .ce.flavor .d{ color:#8a7c66; }
@@ -128,10 +133,31 @@ body.aiming #app canvas{ cursor:crosshair; }
   color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
 #shareBtn:hover{ opacity:1; color:var(--rust); }
 #shareBtn.copied{ opacity:1; color:var(--rust); }
+#gazetteBtn{ display:none; align-items:center; padding:0; background:transparent; border:0; color:var(--ink); cursor:pointer; font-family:var(--disp); font-size:17px; }
+#gzClose{ display:none; position:absolute; top:5px; right:7px; z-index:2; width:32px; height:32px; border:0; background:transparent; color:var(--ink2); cursor:pointer; }
 #hudR{ padding-right:72px; }
 #loadGh{ margin-top:16px; font-size:11px; font-style:italic; }
 #loadGh a{ color:var(--ink2); }
 #graphsBox{ flex:1; display:none; padding:6px; } #graphsCv{ width:100%; height:100%; }
+#gzStories{ flex:1; display:none; overflow-y:auto; padding:9px 11px 14px; scrollbar-width:thin; scrollbar-color:#a5947a transparent; }
+#gzStories::-webkit-scrollbar{ width:5px; } #gzStories::-webkit-scrollbar-thumb{ background:#a5947a; }
+.storyFilter{ position:sticky; top:-9px; z-index:2; background:#e8dcc0; padding:4px 0 7px; border-bottom:1px solid var(--rule); }
+.storyFilter label{ display:block; font-family:var(--sans); font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink2); margin-bottom:3px; }
+.storyFilter select{ width:100%; font-family:var(--serif); font-size:11px; color:var(--ink); background:#f2e9d2; border:1px solid var(--rule); padding:4px; }
+.storySect{ font-family:var(--disp); font-size:11px; letter-spacing:0.06em; margin:11px 0 5px; padding-bottom:3px; border-bottom:1px solid var(--rule); }
+.storyCard{ border:1px solid rgba(141,127,102,0.55); background:rgba(242,233,210,0.55); padding:7px 8px; margin-bottom:6px; cursor:pointer; }
+.storyCard:hover{ background:rgba(139,58,46,0.08); }
+.storyCard.active{ border-left:3px solid var(--rust); }
+.storyType{ font-family:var(--sans); font-size:8px; letter-spacing:0.1em; text-transform:uppercase; color:var(--rust); }
+.storyTitle{ font-size:12px; font-weight:700; margin:1px 0; }
+.storyMeta{ font-size:9.5px; color:var(--ink2); }
+.storyLatest{ font-size:10.5px; line-height:1.3; margin-top:4px; color:#544a3c; }
+.storyEmpty{ font-size:11px; font-style:italic; color:var(--ink2); padding:12px 2px; }
+.storyBack{ border:0; background:transparent; color:var(--rust); font-family:var(--sans); font-size:9px; letter-spacing:0.08em; text-transform:uppercase; cursor:pointer; padding:2px 0 7px; }
+.storyHead{ border-bottom:3px double var(--rule); padding-bottom:7px; margin-bottom:8px; }
+.storyHead h3{ font-family:var(--disp); font-size:14px; margin:0 0 2px; }
+.storyTimeline .ce{ padding-bottom:7px; border-bottom:1px dotted rgba(141,127,102,0.45); }
+.storyTimeline .ce.year{ display:none; }
 
 /* ---------- drawer (left) ---------- */
 #drawer{ position:fixed; top:72px; left:10px; bottom:12px; width:252px; z-index:8; display:flex; flex-direction:column;
@@ -248,7 +274,13 @@ body.storyScene #camFrame{ border-color:rgba(139,58,46,0.75); }
   #mastTitle{ font-size:16px; } #mastSub{ display:none; }
 }
 @media (max-width:640px){
-  #gazette{ display:none; } #drawer{ transform:translateX(-262px); opacity:0.2; }
+  #gazette{ display:none; inset:0; width:auto; z-index:20; }
+  body.gzOpen #gazette{ display:flex; }
+  #gazetteBtn{ display:flex; width:40px; height:40px; justify-content:center; }
+  #gzClose{ display:block; width:44px; height:44px; }
+  #gzModes button{ min-height:40px; }
+  #gzChips button{ min-height:36px; }
+  #drawer{ transform:translateX(-262px); opacity:0.2; }
   #drawer.open{ transform:none; opacity:1; }
 }
 body.uiHidden #hud, body.uiHidden #gazette, body.uiHidden #drawer, body.uiHidden #inspector, body.uiHidden #warStrip{ display:none !important; }
@@ -278,6 +310,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
     <div class="hudline"><span>Bank <b id="bankTxt">$0</b></span><span>Souls <b id="popTxt">0</b></span></div>
   </div>
   <div id="topActions">
+    <button id="gazetteBtn" type="button" title="Open the Gazette" aria-label="Open the Gazette">G</button>
     <button id="shareBtn" type="button" title="Copy a link to this world">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Share this world"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
     </button>
@@ -290,17 +323,19 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
 
 <div id="gazette">
   <div id="gzHead">
+    <button id="gzClose" type="button" aria-label="Close the Gazette">✕</button>
     <div id="gzMast">The Gazette</div>
     <div id="gzDate">—</div>
+    <div id="gzModes"><button data-gz-mode="news" class="on">News</button><button data-gz-mode="stories">Stories</button><button data-gz-mode="ledgers">Ledgers</button></div>
     <div id="gzChips">
       <button data-f="all" class="on">All</button><button data-f="law">Law</button><button data-f="frontier">Frontier</button>
       <button data-f="trade">Trade</button><button data-f="fate">Fates</button>
     </div>
   </div>
   <div id="gzScroll" data-f="all"></div>
+  <div id="gzStories"></div>
   <div id="graphsBox"><canvas id="graphsCv"></canvas></div>
   <div id="gzTools">
-    <button id="btnCharts">Ledgers</button>
     <button id="btnExport">Export archive</button>
   </div>
 </div>
@@ -2201,6 +2236,7 @@ function initRenderer(){
     renderer.setSize(innerWidth, innerHeight);
     camera.aspect = innerWidth/innerHeight;
     camera.updateProjectionMatrix();
+    if(chartsOn && W) drawGraphs();
   });
   MAT.world = patchWorldMaterial(new THREE.MeshLambertMaterial({vertexColors:true}));
   MAT.road  = patchWorldMaterial(new THREE.MeshLambertMaterial({vertexColors:true, side:THREE.DoubleSide,
@@ -3475,10 +3511,38 @@ function legendEpithet(n, e){
   if(n.signature==='stockman') return pickH(CONTENT.epithets.trail);
   return pickH(CONTENT.epithets.gunfight);
 }
-function actorLinks(e){
+function actorLinks(e, storyMode){
   if(!e.actors || !e.actors.length) return '';
-  const names = e.actors.map(notable).filter(Boolean).map(n => '<span data-nid="' + n.id + '">' + nName(n) + '</span>');
+  const attr = storyMode ? ' data-story-person="' : ' data-nid="';
+  const names = e.actors.map(notable).filter(Boolean).map(n => '<span' + attr + n.id + '">' + nName(n) + '</span>');
   return names.length ? '<div class="actors">IN THIS STORY · ' + names.join(' · ') + '</div>' : '';
+}
+function storyThread(id){ return W.story && W.story.threads.find(t => t.id === id) || null; }
+function beginStoryThread(type, title, day, parentId){
+  const id = type + ':' + (++W.story.nextThreadId);
+  W.story.threads.push({id, type, title, startDay:day, endDay:null, status:'active', parentId:parentId||null, outcome:null});
+  W.story.revision++;
+  return id;
+}
+function closeStoryThread(id, day, outcome){
+  const t = storyThread(id);
+  if(!t || t.status === 'closed') return;
+  t.status = 'closed'; t.endDay = day; t.outcome = outcome || null;
+  W.story.revision++;
+}
+function linkEventActor(e, id){
+  if(!e || !notable(id) || e.actors.includes(id)) return;
+  e.actors.push(id);
+  W.story.revision++;
+  document.querySelectorAll('.ce[data-eid="' + e.id + '"]').forEach(node => {
+    const old = node.querySelector('.actors');
+    if(old) old.remove();
+    node.insertAdjacentHTML('beforeend', actorLinks(e, node.dataset.story === '1'));
+  });
+}
+function linkEventThread(e, id){
+  if(!e || !id || e.threadIds.includes(id)) return;
+  e.threadIds.push(id); W.story.revision++;
 }
 function awardStoryFame(e, awards){
   const newLegends = [];
@@ -3502,31 +3566,45 @@ function awardStoryFame(e, awards){
   });
   return newLegends;
 }
+function createChronEventNode(e, storyMode){
+  const div = document.createElement('div');
+  div.className = 'ce ' + e.cls + (e.x !== undefined ? ' click' : '');
+  div.dataset.eid = e.id;
+  if(storyMode) div.dataset.story = '1';
+  if(e.cls === 'year' || e.cls === 'era'){
+    div.textContent = e.text;
+    div.insertAdjacentHTML('beforeend', actorLinks(e, storyMode));
+  } else div.innerHTML = '<span class="d">' + dateStr(e.day) + '</span>' + e.text + actorLinks(e, storyMode);
+  div.addEventListener('click', ev => {
+    const storyPerson = ev.target.closest('[data-story-person]');
+    if(storyPerson){ openPersonStory(+storyPerson.dataset.storyPerson); return; }
+    const link = ev.target.closest('[data-nid]');
+    if(link){ const n = notable(+link.dataset.nid); if(n){ setGazetteOpen(false); inspectNotable(n); } return; }
+    if(e.x !== undefined){ setGazetteOpen(false); flyTo(e.x, e.z, 520); }
+  });
+  return div;
+}
+function appendNewsEvent(e){
+  const sc = document.getElementById('gzScroll');
+  const stick = sc.scrollTop + sc.clientHeight > sc.scrollHeight - 60;
+  sc.appendChild(createChronEventNode(e, false));
+  while(sc.children.length > 150) sc.removeChild(sc.firstChild);
+  if(stick) sc.scrollTop = sc.scrollHeight;
+}
 function chron(cls, text, x, z, pri, meta){
   meta = meta || {};
   if(pri === undefined) pri = PRI_BY_CLS[cls] || 0;
   const actors = [...new Set((meta.actors||[]).filter(id => notable(id)))];
+  const threadIds = [...new Set((meta.threadIds||[]).filter(Boolean))];
   const e = { id: ++W.nextEventId, day: W.inDayTick ? W.dayTicked : W.clock.day, cls, text, x, z, pri,
-    kind:meta.kind||null, actors, scene:meta.scene||null };
+    kind:meta.kind||null, actors, threadIds, scene:meta.scene||null };
   W.chron.push(e);
+  if(actors.length || threadIds.length) W.story.revision++;
   if(pri > 0 && x !== undefined){
     W.beats.push(e);
     if(W.beats.length > 60) W.beats.shift();
   }
-  const sc = document.getElementById('gzScroll');
-  const div = document.createElement('div');
-  div.className = 'ce ' + cls + (x !== undefined ? ' click' : '');
-  if(cls === 'year' || cls === 'era') div.textContent = text;
-  else div.innerHTML = '<span class="d">' + dateStr(e.day) + '</span>' + text + actorLinks(e);
-  div.addEventListener('click', ev => {
-    const link = ev.target.closest('[data-nid]');
-    if(link){ const n = notable(+link.dataset.nid); if(n) inspectNotable(n); return; }
-    if(x !== undefined) flyTo(x, z, 520);
-  });
-  const stick = sc.scrollTop + sc.clientHeight > sc.scrollHeight - 60;
-  sc.appendChild(div);
-  while(sc.children.length > 150) sc.removeChild(sc.firstChild);
-  if(stick) sc.scrollTop = sc.scrollHeight;
+  appendNewsEvent(e);
   const newLegends = awardStoryFame(e, meta.fame);
   if(e.scene && W.sceneReady && W.allowScenes !== false) queueStoryScene(e);
   newLegends.forEach(n => chron('myth', 'A NAME FOR THE AGES. — ' + nName(n) + ' is spoken of now as a legend of the territory. Printers back East may shortly improve the facts.', x, z, 7,
@@ -3767,6 +3845,7 @@ function initEconomy(){
   W.treasury = 900;
   W.dayTicked = Math.floor(W.clock.day);
   W.chron = []; W.beats = []; W.nextEventId = 0; W.allowScenes = true;
+  W.story = {nextThreadId:0, threads:[], revision:0};
   W.agents = [];
   W.series = [];
   W.rates = { harvest:1, birth:1, mortality:1, trade:1, tax:0.12, disaster:1, rustler:1, aggression:1, fertility:1, cholV:1, cholL:1, tales:1 };
@@ -3775,13 +3854,15 @@ function initEconomy(){
   W.stageNext = W.clock.day + 4;
   W.firstRoutes = new Set();
   W.pairLoads = new Map();
-  W.pol = { war:null, nextElection: W.clock.day + ri(W.rng.hist, 300, 700), nextGovTerm: W.clock.day + ri(W.rng.hist, 1440, 2880) };
+  W.pol = { war:null, nextElection: W.clock.day + ri(W.rng.hist, 300, 700), nextGovTerm: W.clock.day + ri(W.rng.hist, 1440, 2880), govThreadId:null };
+  const firstGov = notable(W.gov);
+  W.pol.govThreadId = beginStoryThread('governorship', 'The Governorship of ' + nName(firstGov), W.clock.day);
   W.outfits.forEach(o => { o.amb = rr(W.rng.hist, 0.3, 0.7); });
   W.camps = [];
   W.windAng = rr(W.rng.hist, 0, 6.28);
   DIR.until = 0; DIR.cool = {}; DIR.idleAt = 0;
   lastGraphDay = -99;
-  if(chartsOn) setCharts(false);
+  resetGazetteView();
   document.getElementById('gzScroll').innerHTML = '';
   W.settlements.forEach(initSettlementEconomy);
   buildTradeRoutes();
@@ -4081,7 +4162,8 @@ function maybeStartDrives(day){
     const a = spawnAgent('drive', si, best, 'cattle', head, W.routes.get(si + '>' + best), day);
     a.outfit = o || null;
     s.driveYear = Math.floor(day/360);
-    if(o) chron('trade', T.driveStart(o, head, S[best]), s.x, s.z, 5);
+    if(o) chron('trade', T.driveStart(o, head, S[best]), s.x, s.z, 5,
+      {kind:'drive.started', actors:[o.head]});
   });
 }
 function driveArrived(a, dst){
@@ -4683,6 +4765,8 @@ function inspectNotable(n){
   }
   html += inspRow('Age', Math.round(n.age));
   html += inspRow('Disposition', n.traits.join(', '));
+  if(n.jailed) html += inspRow('Condition', 'held for trial');
+  else if(n.imprisoned) html += inspRow('Condition', 'in territorial prison');
   if(isPrincipal(n) || isLegend(n)){
     const sig = CONTENT.signatures[n.signature];
     if(sig) html += inspRow('Signature', sig[0] + ' — ' + sig[1]);
@@ -4697,12 +4781,14 @@ function inspectNotable(n){
     html += '<div class="deeds"><b>Life in Print</b>' + n.deeds.slice().reverse().map(d =>
       '<div class="deed">' + dateStr(d.day) + ' · ' + d.text + '</div>').join('') + '</div>';
   }
+  if(W.chron.some(e => e.actors && e.actors.includes(n.id)))
+    html += '<button class="ibtn" data-read-story="' + n.id + '">Read full story</button>';
   showInspector(html);
   W.inspNotable = n;
 }
 function appointOfficial(role, day){
   const R = W.rng.hist;
-  const pool = livingNotables().filter(n => !n.role && n.age >= 24 && n.age <= 62);
+  const pool = livingNotables().filter(n => !n.role && !n.jailed && !n.imprisoned && n.age >= 24 && n.age <= 62);
   const n = pool.length ? pickH(pool) : makeNotable({outfit:-2, age: ri(R,30,50)});
   n.role = role;
   if(role==='sheriff' || role==='marshal' || role==='judge') n.outfit = -1;
@@ -4714,6 +4800,7 @@ function appointOfficial(role, day){
 }
 function appointGovernor(day, cause, backerIdx){
   const R = W.rng.hist;
+  if(W.pol.govThreadId) closeStoryThread(W.pol.govThreadId, day, cause || 'term ended');
   let backer = backerIdx;
   if(backer === undefined){
     // the outfits lobby washington with their pocketbooks
@@ -4728,7 +4815,7 @@ function appointGovernor(day, cause, backerIdx){
   let n;
   if(backer >= 0){
     const o = W.outfits[backer];
-    const kin = livingNotables().filter(k => k.outfit === backer && k.age >= 30 && k.age <= 65 && !k.role);
+    const kin = livingNotables().filter(k => k.outfit === backer && !k.jailed && !k.imprisoned && k.age >= 30 && k.age <= 65 && !k.role);
     n = kin.length ? pickH(kin) : makeNotable({sur: o.sur, outfit: backer, age: ri(R,38,58)});
     o.standing = Math.min(100, o.standing + 10);
     W.outfits.forEach((o2,i) => { if(i !== backer && !o2.exiled) o2.standing -= 4; });
@@ -4741,13 +4828,15 @@ function appointGovernor(day, cause, backerIdx){
   n.outfit = n.outfit >= 0 ? n.outfit : -1;
   setAmbition(n, true);
   W.gov = n.id;
+  W.pol.govThreadId = beginStoryThread('governorship', 'The Governorship of ' + nName(n), day);
   W.pol.nextGovTerm = day + ri(R, 1440, 2880);
   const yr = YEAR0 + Math.floor(day/360) + (Math.floor(((day%360)+360)%360/30) >= 10 ? 1 : 0);
-  chron('era', 'THE GOVERNORSHIP OF ' + nName(n).toUpperCase() + ', BEGUN ' + yr + '.');
+  chron('era', 'THE GOVERNORSHIP OF ' + nName(n).toUpperCase() + ', BEGUN ' + yr + '.', undefined, undefined, 0,
+    {kind:'governor.era', actors:[n.id], threadIds:[W.pol.govThreadId]});
   chron('law', pickH(['BY WIRE FROM WASHINGTON. — ' + nName(n) + ' is named territorial governor' +
     (cause==='shot' ? ', the office being lately vacated by violence.' : cause==='dead' ? ', the late governor having died in harness.' : '.'),
     'A NEW HAND ON THE TILLER. — ' + nName(n) + ' takes the governorship.' ]), W.settlements[0].x, W.settlements[0].z, 9,
-    {kind:'governor.appointed', actors:[n.id], fame:[{id:n.id, points:8, deed:'Named territorial governor'}]});
+    {kind:'governor.appointed', actors:[n.id], threadIds:[W.pol.govThreadId], fame:[{id:n.id, points:8, deed:'Named territorial governor'}]});
   outfitsDirty();
   return n;
 }
@@ -4762,25 +4851,27 @@ function killNotable(n, cause, day, meta){
   if(n.role === 'governor'){
     const headline = meta && meta.headline ? meta.headline : 'THE GOVERNOR IS DEAD. — ' + nName(n) + ' died ' + causeTxt + '. The territory holds its breath.';
     const deathEvent = chron('law', headline, S0.x, S0.z, 9,
-      Object.assign({kind:'governor.died', actors:[n.id]}, meta||{}));
+      Object.assign({kind:'governor.died', actors:[n.id], threadIds:[W.pol.govThreadId]}, meta||{}));
     W.order = Math.max(5, W.order - (cause==='shot' ? 16 : 6));
+    closeStoryThread(W.pol.govThreadId, day, cause==='shot' ? 'assassinated' : 'died in office');
     const successor = appointGovernor(day, cause==='shot' ? 'shot' : 'dead');
     if(deathEvent.scene && successor){
-      deathEvent.actors.push(successor.id);
+      linkEventActor(deathEvent, successor.id);
       deathEvent.scene.outcome = nName(n) + ' is dead. ' + nName(successor) + ' takes the governorship before the blood is dry.';
     }
+    return deathEvent;
   } else if(n.role === 'head' || (n.outfit >= 0 && W.outfits[n.outfit] && W.outfits[n.outfit].head === n.id)){
     const o = W.outfits[n.outfit];
     chron('law', 'PASSING. — ' + nName(n) + ', head of ' + o.name + ', died ' + causeTxt + '.', S0.x, S0.z, 6,
-      {kind:'outfit.head.died', actors:[n.id]});
-    const heirs = W.notables.filter(k => k.alive && k.outfit === n.outfit && k.parent === n.id && k.age >= 16);
-    const heir = heirs[0] || livingNotables().filter(k => k.outfit === n.outfit && k.age >= 16)[0];
+      Object.assign({kind:'outfit.head.died', actors:[n.id]}, meta||{}));
+    const heirs = W.notables.filter(k => k.alive && !k.jailed && !k.imprisoned && k.outfit === n.outfit && k.parent === n.id && k.age >= 16);
+    const heir = heirs[0] || livingNotables().filter(k => !k.jailed && !k.imprisoned && k.outfit === n.outfit && k.age >= 16)[0];
     if(heir){
       heir.role = 'head';
       o.head = heir.id;
       setAmbition(heir, true);
       chron('law', 'THE BRAND PASSES. — ' + nName(heir) + ' succeeds ' + nName(n) + ' at the head of ' + o.name + '.', S0.x, S0.z, 6,
-        {kind:'outfit.succession', actors:[heir.id,n.id], fame:[{id:heir.id, points:5, deed:'Inherited ' + o.brand.name}]});
+        {kind:'outfit.succession', actors:[heir.id,n.id], threadIds:meta&&meta.threadIds||[], fame:[{id:heir.id, points:5, deed:'Inherited ' + o.brand.name}]});
       if(cause==='gunfight' || cause==='shot'){
         // blood remembers
         if(o.lastFoe !== undefined){ o.grudges[o.lastFoe] = (o.grudges[o.lastFoe]||0) + 30; }
@@ -4790,19 +4881,19 @@ function killNotable(n, cause, day, meta){
     outfitsDirty();
   } else if(['sheriff','marshal','judge','preacher','doctor','editor'].includes(n.role)){
     chron('law', 'OBITUARY. — ' + nName(n) + ', ' + roleOf(n) + ', died ' + causeTxt + '.', S0.x, S0.z, 4,
-      {kind:'official.died', actors:[n.id]});
+      Object.assign({kind:'official.died', actors:[n.id]}, meta||{}));
     const r = n.role;
     n.role = null;
     appointOfficial(r, day);
-  } else if(cause !== 'age' || chance(W.rng.hist, 0.12)){
+  } else if(!(meta&&meta.skipNotice) && (cause !== 'age' || chance(W.rng.hist, 0.12))){
     chron('flavor', 'DIED. — ' + nName(n) + ', ' + causeTxt + '. ' + pickH(CONTENT.gazette.mourning), undefined, undefined, 0,
-      {kind:'notable.died', actors:[n.id]});
+      Object.assign({kind:'notable.died', actors:[n.id]}, meta||{}));
   }
 }
 function arrangeMarriage(manual, day){
   const R = W.rng.hist;
   const live = livingNotables();
-  const bachelors = live.filter(n => !n.spouse && n.age >= 18 && n.age <= 55);
+  const bachelors = live.filter(n => !n.spouse && !n.jailed && !n.imprisoned && n.age >= 18 && n.age <= 55);
   if(bachelors.length < 2) return false;
   // alliance value: bind the sorest outfit to another
   let m = null, f = null;
@@ -4846,13 +4937,14 @@ function tickPolitics(day){
   // births
   if(live.length < 140){
     for(const n of live){
-      if(n.sex !== 'f' || !n.spouse || n.age < 16 || n.age > 42) continue;
+      if(n.sex !== 'f' || !n.spouse || n.jailed || n.imprisoned || n.age < 16 || n.age > 42) continue;
       const sp = notable(n.spouse);
-      if(!sp || !sp.alive) continue;
+      if(!sp || !sp.alive || sp.jailed || sp.imprisoned) continue;
       if(chance(R, 0.0015 * W.rates.fertility * (n.traits.includes('fertile') ? 1.6 : 1))){
         const kid = makeNotable({sur: sp.sex==='m' ? sp.sur : n.sur, outfit: sp.outfit >= 0 ? sp.outfit : n.outfit, age: 0, parent: sp.sex==='m' ? sp.id : n.id});
         if(n.outfit >= 0 || chance(R, 0.2))
-          chron('flavor', 'BORN. — To ' + nName(sp) + ' and ' + nName(n) + ', a ' + (kid.sex==='m'?'son':'daughter') + '. Mother and child doing well.');
+          chron('flavor', 'BORN. — To ' + nName(sp) + ' and ' + nName(n) + ', a ' + (kid.sex==='m'?'son':'daughter') + '. Mother and child doing well.', undefined, undefined, 0,
+            {kind:'family.born', actors:[kid.id,sp.id,n.id]});
         if(chance(R, 0.008)) killNotable(n, 'childbed', day);
       }
     }
@@ -4862,7 +4954,8 @@ function tickPolitics(day){
   // and the stage brings new faces of consequence
   if(live.length < 100 && day % 137 === 55){
     const n = makeNotable({outfit:-2, age: ri(R, 20, 45)});
-    if(chance(R, 0.25)) chron('flavor', 'ARRIVED. — ' + nName(n) + ', lately of the States, come to try the territory. Time will tell what for.');
+    if(chance(R, 0.25)) chron('flavor', 'ARRIVED. — ' + nName(n) + ', lately of the States, come to try the territory. Time will tell what for.', undefined, undefined, 0,
+      {kind:'notable.arrived', actors:[n.id]});
   }
   // outfit standing drift
   const gov = notable(W.gov);
@@ -4928,7 +5021,8 @@ function tickPolitics(day){
         a.o.standing = Math.max(0, a.o.standing - ri(R, 4, 10));
         b.o.standing = Math.max(0, b.o.standing - ri(R, 2, 6));
         const s = W.settlements[a.o.seat] || W.settlements[0];
-        chron('frontier', 'BAD BLOOD. — ' + what.charAt(0).toUpperCase() + what.slice(1) + '. The ' + a.o.sur + 's blame the ' + b.o.sur + 's, who deny everything and oil their guns.', s.x, s.z, 5);
+        chron('frontier', 'BAD BLOOD. — ' + what.charAt(0).toUpperCase() + what.slice(1) + '. The ' + a.o.sur + 's blame the ' + b.o.sur + 's, who deny everything and oil their guns.', s.x, s.z, 5,
+          {kind:'outfit.bad_blood', actors:[a.o.head,b.o.head]});
       }
     }
   }
@@ -4973,7 +5067,8 @@ function raiseOutfit(day){
   head.spouse = sp.id; sp.spouse = head.id;
   W.outfits.push(o);
   const s = W.settlements[seat];
-  chron('law', 'NEW MONEY. — The ' + sur + 's have bought land about ' + s.name + ' and registered the ' + brand.name + ' brand. Established interests are watching with folded arms.', s.x, s.z, 6);
+  chron('law', 'NEW MONEY. — The ' + sur + 's have bought land about ' + s.name + ' and registered the ' + brand.name + ' brand. Established interests are watching with folded arms.', s.x, s.z, 6,
+    {kind:'outfit.founded', actors:[head.id]});
   outfitsDirty();
 }
 // ---------- elections ----------
@@ -4984,14 +5079,14 @@ function countyElection(day){
   const cands = [];
   const backers = W.outfits.map((o,i)=>({o,i})).filter(x=>!x.o.exiled).sort((a,b)=>b.o.wealth-a.o.wealth).slice(0,2);
   backers.forEach(({o,i}) => {
-    const kin = livingNotables().filter(n => n.outfit === i && n.age >= 26 && n.age <= 62 && !n.role);
+    const kin = livingNotables().filter(n => n.outfit === i && !n.jailed && !n.imprisoned && n.age >= 26 && n.age <= 62 && !n.role);
     const n = kin.length ? pickH(kin) : null;
     if(n) cands.push({n, backer:i});
   });
   const inc = officialOf('sheriff');
   if(inc) cands.push({n:inc, backer:-1, incumbent:true});
   if(cands.length < 2){
-    const pool = livingNotables().filter(n => !n.role && n.age >= 26 && n.age <= 60);
+    const pool = livingNotables().filter(n => !n.role && !n.jailed && !n.imprisoned && n.age >= 26 && n.age <= 60);
     if(pool.length) cands.push({n: pickH(pool), backer:-1});
   }
   if(cands.length < 2) return;
@@ -5012,6 +5107,9 @@ function countyElection(day){
   cands.sort((a,b)=>b.votes-a.votes);
   const win = cands[0], lose = cands[1];
   const margin = (win.votes - lose.votes) / tot;
+  const lo = lose.backer >= 0 ? W.outfits[lose.backer] : null;
+  const willDispute = margin < 0.12 && lo && (lo.amb > 0.45 || lo.standing < 40);
+  const electionThreadId = willDispute ? beginStoryThread('election', 'The Disputed Election of ' + dateStr(day), day) : null;
   if(win.n !== inc){
     if(inc){ inc.role = null; setAmbition(inc, true); }
     win.n.role = 'sheriff';
@@ -5022,19 +5120,17 @@ function countyElection(day){
     (win.backer >= 0 ? ', with the open blessing of ' + W.outfits[win.backer].name : '') +
     ', by a margin of ' + Math.max(1,Math.round(margin*100)) + ' in the hundred. ' +
     pickH(CONTENT.gazette.electionAside),
-    S0.x, S0.z, 6, {kind:'election.won', actors:[win.n.id,lose.n.id],
+    S0.x, S0.z, 6, {kind:'election.won', actors:[win.n.id,lose.n.id], threadIds:electionThreadId?[electionThreadId]:[],
       fame:[{id:win.n.id, points:15, deed:'Won election as County Sheriff'},{id:lose.n.id, points:0, deed:'Lost the county election to ' + nName(win.n)}]});
-  if(margin < 0.12 && lose.backer >= 0){
-    const lo = W.outfits[lose.backer];
-    if(lo.amb > 0.45 || lo.standing < 40) disputedElection(day, lose.backer, win, lose);
-  }
+  if(willDispute) disputedElection(day, lose.backer, win, lose, electionThreadId);
   outfitsDirty();
 }
-function disputedElection(day, loserIdx, winner, loser){
+function disputedElection(day, loserIdx, winner, loser, threadId){
   const S0 = W.settlements[0];
   const o = W.outfits[loserIdx];
   const incumbent = winner && winner.n ? winner.n : officialOf('sheriff');
   const challenger = loser && loser.n ? loser.n : notable(o.head);
+  if(!threadId) threadId = beginStoryThread('election', 'The Courthouse Affair of ' + dateStr(day), day);
   W.order = Math.max(0, W.order - 15);
   S0.unrest = Math.min(100, S0.unrest + 14);
   o.standing = Math.max(0, o.standing - 14);
@@ -5054,14 +5150,16 @@ function disputedElection(day, loserIdx, winner, loser){
     if(incumbent) awards.push({id:incumbent.id, points:10, deed:'Held the badge through the Courthouse Affair'});
   }
   const actors = [incumbent&&incumbent.id,challenger&&challenger.id,o.head].filter(Boolean);
-  chron('law', 'THE COURTHOUSE AFFAIR. — ' + o.name + ' does not accept the count. Armed men stood on the courthouse steps until dark. ' + outcome,
-    S0.x, S0.z, 9, {kind:'election.disputed', actors, fame:awards, scene:{title:'The Courthouse Affair',
+  const disputeEvent = chron('law', 'THE COURTHOUSE AFFAIR. — ' + o.name + ' does not accept the count. Armed men stood on the courthouse steps until dark. ' + outcome,
+    S0.x, S0.z, 9, {kind:'election.disputed', actors, threadIds:[threadId], fame:awards, scene:{title:'The Courthouse Affair',
       setup:(challenger?nName(challenger):o.name) + ' contests ' + (incumbent?nName(incumbent)+'’s':'the') + ' claim to the sheriff’s badge.', outcome}});
-  if(canWar) maybeWar(day, 'the stolen election', 42);
+  const warThreadId = canWar ? maybeWar(day, 'the stolen election', 42, {parentThreadId:threadId, actors}) : null;
+  if(warThreadId) linkEventThread(disputeEvent, warThreadId);
+  closeStoryThread(threadId, day, canWar ? 'escalated into range war' : outcome);
   outfitsDirty();
 }
 // ---------- range wars ----------
-function maybeWar(day, spark, threshold){
+function maybeWar(day, spark, threshold, context){
   if(W.pol.war) return false;
   const rebels = [];
   W.outfits.forEach((o,i) => {
@@ -5069,8 +5167,7 @@ function maybeWar(day, spark, threshold){
     if(o.standing < threshold && o.might > 22) rebels.push(i);
   });
   if(!rebels.length) return false;
-  startWar(rebels, spark, day);
-  return true;
+  return startWar(rebels, spark, day, context);
 }
 function strongholdOf(oi){
   const o = W.outfits[oi];
@@ -5085,17 +5182,20 @@ function strongholdOf(oi){
   });
   return best >= 0 ? best : o.seat;
 }
-function startWar(rebels, spark, day){
-  W.pol.war = { rebels, score:0, start:day, spark, lastSpawn:0, holds:{} };
+function startWar(rebels, spark, day, context){
+  context = context || {};
+  const threadId = beginStoryThread('war', 'The Range War over ' + spark, day, context.parentThreadId);
+  W.pol.war = { rebels, score:0, start:day, spark, lastSpawn:0, holds:{}, threadId, parentThreadId:context.parentThreadId||null };
   rebels.forEach(i => { W.pol.war.holds[i] = strongholdOf(i); });
   const names = rebels.map(i=>W.outfits[i].name).join(' and ');
   const S0 = W.settlements[0];
   rebels.forEach(i => { W.outfits[i].lastFoe = -1; });
-  const actors = rebels.map(i => W.outfits[i].head).concat([W.gov]).filter(Boolean);
+  const actors = [...new Set(rebels.map(i => W.outfits[i].head).concat([W.gov], context.actors||[]).filter(Boolean))];
   chron('frontier', 'RANGE WAR. — ' + names.toUpperCase().replace('THE ','the ') + ' has taken up arms over ' + spark +
     '. Riders are out; sensible men are indoors. The governor calls for order and is not answered.', S0.x, S0.z, 10,
-    {kind:'war.started', actors, fame:rebels.map(i => ({id:W.outfits[i].head, points:5, deed:'Took up arms over ' + spark}))});
+    {kind:'war.started', actors, threadIds:[threadId], fame:rebels.map(i => ({id:W.outfits[i].head, points:5, deed:'Took up arms over ' + spark}))});
   updateWarStrip();
+  return threadId;
 }
 function spawnPosse(side, srcIdx, dstIdx, strength, day){
   const rt = W.routes.get(srcIdx + '>' + dstIdx);
@@ -5104,7 +5204,7 @@ function spawnPosse(side, srcIdx, dstIdx, strength, day){
   let leaderPool;
   if(side === 'law') leaderPool = [officialOf('marshal'), officialOf('sheriff')].filter(Boolean);
   else {
-    const kin = livingNotables().filter(n => n.outfit === side && n.age > 18);
+    const kin = livingNotables().filter(n => n.outfit === side && !n.jailed && !n.imprisoned && n.age > 18);
     const head = notable(W.outfits[side] && W.outfits[side].head);
     leaderPool = head && head.alive ? [head,head,head].concat(kin) : kin;
   }
@@ -5157,7 +5257,7 @@ function resolveGunfight(a, b, day){
   // leaders live and die by it
   const lw = notable(winP.leader), ll = notable(loseP.leader);
   let leadLine = '';
-  if(ll && chance(R, 0.1)){ killNotable(ll, 'gunfight', day); leadLine = ' ' + nName(ll) + ' will not ride home.'; }
+  if(ll && chance(R, 0.1)){ killNotable(ll, 'gunfight', day, {kind:'war.leader.died', actors:[ll.id], threadIds:[w.threadId]}); leadLine = ' ' + nName(ll) + ' will not ride home.'; }
   else if(lw && !lw.epithet && chance(R, 0.22)){
     lw.epithet = pickH(CONTENT.epithets.gunfight);
     leadLine = ' Men are calling ' + lw.given + ' ' + lw.sur + ' “' + lw.epithet + '” now.';
@@ -5176,7 +5276,7 @@ function resolveGunfight(a, b, day){
   chron('frontier', 'GUNFIGHT ON THE RANGE. — ' + sideName(winP.side) + ' drove ' + sideName(loseP.side) +
     ' off the ground near the ' + ground + '; ' +
     (casW+casL) + ' men down.' + leadLine, px, pz, 8,
-    {kind:decisive?'war.gunfight.decisive':'war.gunfight', actors:actorIds, fame, scene:sceneMeta});
+    {kind:decisive?'war.gunfight.decisive':'war.gunfight', actors:actorIds, threadIds:[w.threadId], fame, scene:sceneMeta});
   // the beaten side routs for home
   if(loseP.strength < 8 || loseP.morale < 0.3){ disbandPosse(loseP); }
   else routeHome(loseP, day);
@@ -5239,7 +5339,9 @@ function warDaily(day){
     if(!hostileTown){ routeHome(p, day); continue; }
     p.state = 'siege';
     p.siegeUntil = day + (p.dst === 0 && S[0].fort ? 26 : 13) + ri(W.rng.hist, 0, 8);
-    chron('frontier', 'STANDOFF. — Armed riders sit outside ' + dstS.name + '. Business is suspended; nerves are not.', dstS.x, dstS.z, 8);
+    const defender = p.side === 'law' ? W.outfits[w.rebels.find(i => w.holds[i] === p.dst)] : null;
+    chron('frontier', 'STANDOFF. — Armed riders sit outside ' + dstS.name + '. Business is suspended; nerves are not.', dstS.x, dstS.z, 8,
+      {kind:'war.standoff', actors:[p.leader,defender&&defender.head,p.side==='law'?null:W.gov].filter(Boolean), threadIds:[w.threadId]});
   }
   for(const p of ps){
     if(p.state !== 'siege') continue;
@@ -5253,9 +5355,11 @@ function warDaily(day){
       if(p.side === 'law'){
         const o = W.outfits[w.rebels.find(i => w.holds[i] === p.dst)];
         if(o) o.standing = Math.min(100, o.standing + 20);   // brought to heel
-        chron('frontier', 'TAKEN. — The law rode into ' + dstS.name + ' at dawn and disarmed it without much argument.', dstS.x, dstS.z, 8);
+        chron('frontier', 'TAKEN. — The law rode into ' + dstS.name + ' at dawn and disarmed it without much argument.', dstS.x, dstS.z, 8,
+          {kind:'war.town.taken', actors:[p.leader,o&&o.head].filter(Boolean), threadIds:[w.threadId]});
       } else {
-        chron('frontier', 'SACKED. — ' + W.outfits[p.side].name + ' had the run of ' + dstS.name + ' for a day. The count of what is missing continues.', dstS.x, dstS.z, 8);
+        chron('frontier', 'SACKED. — ' + W.outfits[p.side].name + ' had the run of ' + dstS.name + ' for a day. The count of what is missing continues.', dstS.x, dstS.z, 8,
+          {kind:'war.town.sacked', actors:[p.leader,W.outfits[p.side].head,W.gov].filter(Boolean), threadIds:[w.threadId]});
       }
       disbandPosse(p);
       updateWarStrip();
@@ -5268,6 +5372,7 @@ function warDaily(day){
 function endWar(outcome, day){
   const w = W.pol.war;
   const S0 = W.settlements[0];
+  const actors = [W.gov].concat(w.rebels.map(i => W.outfits[i].head)).filter(Boolean);
   possesOf(()=>true).forEach(disbandPosse);
   if(outcome === 'law'){
     w.rebels.forEach(i => {
@@ -5276,23 +5381,28 @@ function endWar(outcome, day){
       o.wealth *= 0.75;
       if(o.might < 12 && chance(W.rng.hist, 0.35)){
         o.exiled = true;
-        chron('frontier', 'EXILE. — ' + o.name + ' has sold out and quit the territory. Their brand goes to the county, their story to the dime novels.', S0.x, S0.z, 9);
+        chron('frontier', 'EXILE. — ' + o.name + ' has sold out and quit the territory. Their brand goes to the county, their story to the dime novels.', S0.x, S0.z, 9,
+          {kind:'war.outfit.exiled', actors:[o.head], threadIds:[w.threadId]});
       }
     });
     W.order = Math.min(100, W.order + 12);
-    chron('frontier', 'PEACE. — The range war is over; the law held. Fences are being mended in both senses.', S0.x, S0.z, 9);
+    chron('frontier', 'PEACE. — The range war is over; the law held. Fences are being mended in both senses.', S0.x, S0.z, 9,
+      {kind:'war.ended.law', actors, threadIds:[w.threadId]});
   } else if(outcome === 'rebels'){
     const backer = w.rebels[0];
     W.outfits[backer].standing = 62;
-    chron('frontier', 'PEACE ON THEIR TERMS. — The county has come to an arrangement with ' + W.outfits[backer].name + '. The governor is understood to be packing.', S0.x, S0.z, 9);
+    chron('frontier', 'PEACE ON THEIR TERMS. — The county has come to an arrangement with ' + W.outfits[backer].name + '. The governor is understood to be packing.', S0.x, S0.z, 9,
+      {kind:'war.ended.rebels', actors, threadIds:[w.threadId]});
     appointGovernor(day, 'war', backer);
     W.order = Math.max(5, W.order - 6);
   } else {
-    chron('frontier', 'FEDERAL TROOPS. — Blue coats rode in, and the shooting stopped the way rain stops a picnic. Fines all round; nothing settled.', S0.x, S0.z, 9);
+    chron('frontier', 'FEDERAL TROOPS. — Blue coats rode in, and the shooting stopped the way rain stops a picnic. Fines all round; nothing settled.', S0.x, S0.z, 9,
+      {kind:'war.ended.federal', actors, threadIds:[w.threadId]});
     w.rebels.forEach(i => { W.outfits[i].wealth *= 0.7; W.outfits[i].standing = 45; });
     W.treasury = Math.max(-500, W.treasury - 400);
     W.order = Math.min(100, W.order + 8);
   }
+  closeStoryThread(w.threadId, day, outcome);
   W.pol.war = null;
   updateWarStrip();
   outfitsDirty();
@@ -5431,13 +5541,15 @@ function runAct(name){
     case 'assassinate': {
       const gov = notable(W.gov);
       if(gov && gov.alive && gov.role === 'governor') {
+        const govThreadId = W.pol.govThreadId;
         const spot = pickH(CONTENT.gazette.assassinSpot);
-        killNotable(gov, 'shot', day, {kind:'governor.assassinated', actors:[gov.id],
+        const assassinationEvent = killNotable(gov, 'shot', day, {kind:'governor.assassinated', actors:[gov.id],
           headline:'OUTRAGE. — Governor ' + nName(gov) + ' was shot down ' + spot + '. The assassin rode east, or west, or is among us.',
           scene:{title:'A Shot at the Governor', setup:'Governor ' + nName(gov) + ' comes into view ' + spot + '. A shot rings out.',
             outcome:nName(gov) + ' is dead. The governorship passes before the blood is dry.'}});
         S0.unrest = Math.min(100, S0.unrest + 18);
-        maybeWar(day, 'the murder of the governor', 38);
+        const warThreadId = maybeWar(day, 'the murder of the governor', 38, {parentThreadId:govThreadId, actors:[gov.id]});
+        if(warThreadId) linkEventThread(assassinationEvent, warThreadId);
       }
       break;
     }
@@ -5904,7 +6016,8 @@ function tickRustlers(day){
       n.bounty = 500 + camp.bounty;
       n.wanted = makeWantedPoster(n);
       camp.boss = n.id;
-      chron('law', 'A NAME IN THE BREAKS. — The road agents ride under ' + nName(n) + ' now. The county prints a reward and hopes.', camp.x, camp.z, 7);
+      chron('law', 'A NAME IN THE BREAKS. — The road agents ride under ' + nName(n) + ' now. The county prints a reward and hopes.', camp.x, camp.z, 7,
+        {kind:'rustler.boss.rises', actors:[n.id]});
     }
     // the county responds to famous camps
     if((camp.raids >= 3 || camp.strength > 50) && !camp.posseDay){
@@ -5938,11 +6051,13 @@ function tickRustlers(day){
         const bossN = camp.boss ? notable(camp.boss) : null;
         if(bossN){
           // with a county jail standing, the law would rather have him breathing
-          if(chance(R, W.settlements[0].hasJail ? 0.35 : 0.5)){ killNotable(bossN, 'gunfight', day); }
+          if(chance(R, W.settlements[0].hasJail ? 0.35 : 0.5)){ killNotable(bossN, 'gunfight', day, {kind:'rustler.boss.killed', actors:[bossN.id]}); }
           else {
-            bossN.role = null; bossN.jailed = true;
-            (W.trials = W.trials || []).push({ id: bossN.id, day: day + ri(R, 20, 50), si: 0 });
-            chron('law', 'TAKEN ALIVE. — ' + nName(bossN) + ' will answer to the district court, which is more than his men can say.', camp.x, camp.z, 6);
+            bossN.role = null; bossN.jailed = true; bossN.imprisoned = false;
+            const trialThreadId = beginStoryThread('trial', 'The Trial of ' + nName(bossN), day);
+            (W.trials = W.trials || []).push({ id: bossN.id, day: day + ri(R, 20, 50), si: 0, threadId:trialThreadId });
+            chron('law', 'TAKEN ALIVE. — ' + nName(bossN) + ' will answer to the district court, which is more than his men can say.', camp.x, camp.z, 6,
+              {kind:'trial.docketed', actors:[bossN.id], threadIds:[trialThreadId]});
           }
         }
         chron('law', camp.federal
@@ -6013,14 +6128,15 @@ function initGang(){
     name: 'the ' + pickH(CONTENT.outfits.gangAdjective) + ' ' + pickH(CONTENT.outfits.gangCollective),
     leader: leader.id, state: 'dormant', x: bx, z: bz,
     strength: ri(R, 8, 14), loot: 0, dormantUntil: W.clock.day + 900,
-    mesh: null, rideFrom: null, rideStart: 0, rideDist: 0, legend: false
+    mesh: null, rideFrom: null, rideStart: 0, rideDist: 0, legend: false, campaignThreadId:null
   };
   W.gang.hideMesh = campMesh(bx, bz);
 }
 function gangLine(){ return W.gang ? W.gang.name + (W.gang.legend ? ' (of dreadful memory)' : '') : 'the gang'; }
 function rouseGang(day){
   const g = W.gang;
-  if(!g || g.state !== 'dormant') return false;
+  if(!g || g.state !== 'dormant' || g.campaignThreadId || W.gangShowdown) return false;
+  g.campaignThreadId = beginStoryThread('gang', 'The ' + g.name.replace(/^the /,'') + ' Campaign of ' + dateStr(day), day);
   g.state = 'riding';
   // the fattest vault in the county, or failing that the county treasury
   g.target = 0;
@@ -6036,7 +6152,8 @@ function rouseGang(day){
     scene.add(g.mesh);
   }
   g.mesh.visible = true;
-  chron('law', 'RIDERS OUT OF THE BREAKS. — ' + gangLine() + ' has been seen moving by night, shod for hard road. The bank has bought more shotguns.', g.x, g.z, 8);
+  chron('law', 'RIDERS OUT OF THE BREAKS. — ' + gangLine() + ' has been seen moving by night, shod for hard road. The bank has bought more shotguns.', g.x, g.z, 8,
+    {kind:'gang.campaign.started', actors:[g.leader], threadIds:[g.campaignThreadId]});
   return true;
 }
 function tickGang(day){
@@ -6058,11 +6175,15 @@ function tickGang(day){
       g.x = bossCamp.x; g.z = bossCamp.z;
       if(g.hideMesh){ g.hideMesh.position.set(g.x, hAt(g.x,g.z), g.z); g.hideMesh.visible = true; }
       removeCamp(bossCamp);
-      chron('law', 'A NEW OUTFIT IN THE BREAKS. — The reward posters have a new name: ' + g.name + ', under ' + nName(boss) + '. The old hands say it will end the same way.', g.x, g.z, 7);
+      chron('law', 'A NEW OUTFIT IN THE BREAKS. — The reward posters have a new name: ' + g.name + ', under ' + nName(boss) + '. The old hands say it will end the same way.', g.x, g.z, 7,
+        {kind:'gang.succession', actors:[boss.id]});
     }
     return;
   }
-  if(!leader || !leader.alive){ g.state = 'dead'; if(g.mesh) g.mesh.visible = false; return; }
+  if(!leader || !leader.alive){
+    if(g.campaignThreadId) closeStoryThread(g.campaignThreadId, day, 'the leader died');
+    g.campaignThreadId = null; g.state = 'dead'; if(g.mesh) g.mesh.visible = false; return;
+  }
   if(g.state === 'dormant'){
     if(day < g.dormantUntil) return;
     // gold breeds attention — in the treasury and in the vaults
@@ -6091,6 +6212,10 @@ function tickGang(day){
         g.dormantUntil = day + ri(R, 500, 1200);
         g.loot *= 0.6;   // they drink it
         if(g.mesh) g.mesh.visible = false;
+        if(g.campaignThreadId && !W.gangShowdown){
+          closeStoryThread(g.campaignThreadId, day, 'the gang escaped into the breaks');
+          g.campaignThreadId = null;
+        }
       }
     }
   }
@@ -6128,10 +6253,10 @@ function gangRobs(day){
     railPointAt(W.rail.dist * rr(R, 0.25, 0.75), _rp);
     W.lastDeathSpot = {x: _rp.x, z: _rp.z};
     chron('law', 'THE TRAIN ROBBED. — ' + gangLine() + ' put a tie across the rails at dusk, emptied the express car of ' + money(take) + ', and thanked the passengers for their patience. The company is offering its own reward, in addition to everyone else’s.', _rp.x, _rp.z, 10,
-      {kind:'gang.robbery', actors:leader?[leader.id]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the railroad express of ' + money(take)}]:[]});
+      {kind:'gang.robbery', actors:leader?[leader.id]:[], threadIds:g.campaignThreadId?[g.campaignThreadId]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the railroad express of ' + money(take)}]:[]});
   } else {
     chron('law', 'THE BANK AT ' + tgt.name.toUpperCase() + ' ROBBED IN OPEN DAY. — ' + gangLine() + ' came up Main Street at a walk, dynamited the vault, and left at a gallop with ' + money(take) + '. One teller fainted; the clock was shot in passing.', tgt.x, tgt.z, 10,
-      {kind:'gang.robbery', actors:leader?[leader.id]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the bank at ' + tgt.name + ' of ' + money(take)}]:[]});
+      {kind:'gang.robbery', actors:leader?[leader.id]:[], threadIds:g.campaignThreadId?[g.campaignThreadId]:[], fame:leader?[{id:leader.id, points:12, deed:'Robbed the bank at ' + tgt.name + ' of ' + money(take)}]:[]});
   }
   // the ride home
   g.state = 'homing';
@@ -6146,12 +6271,16 @@ function gangRobs(day){
     W.gangShowdown = day + ri(R, 10, 26);
     chron('law', 'THE MARSHAL RIDES. — ' + (marshal?nName(marshal):'The law') + ' took ' + ri(R,8,14) + ' sworn men and three days’ bacon and went into the breaks after ' + gangLine() + '.', S0.x, S0.z, 8,
       {kind:'gang.pursuit', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        threadIds:g.campaignThreadId?[g.campaignThreadId]:[],
         fame:marshal?[{id:marshal.id, points:10, deed:'Rode into the breaks after ' + g.name}]:[]});
   } else if(gov && W.treasury > 2000 && (gov.traits.includes('craven') || chance(R,0.3))){
     W.treasury -= 1200;
     g.dormantUntil = day + 1800;
     W.order = Math.max(0, W.order - 6);
-    chron('law', 'AN ARRANGEMENT. — Money changed hands in a canyon, and ' + gangLine() + ' has agreed to prosper elsewhere for a time. This paper declines to congratulate anyone.', S0.x, S0.z, 7);
+    chron('law', 'AN ARRANGEMENT. — Money changed hands in a canyon, and ' + gangLine() + ' has agreed to prosper elsewhere for a time. This paper declines to congratulate anyone.', S0.x, S0.z, 7,
+      {kind:'gang.campaign.payoff', actors:[leader&&leader.id,gov.id].filter(Boolean), threadIds:g.campaignThreadId?[g.campaignThreadId]:[]});
+    closeStoryThread(g.campaignThreadId, day, 'the governor paid the gang off');
+    g.campaignThreadId = null;
   }
 }
 function tickGangShowdown(day){
@@ -6168,7 +6297,7 @@ function tickGangShowdown(day){
     W.treasury += back;
     g.loot = 0;
     if(marshal && !marshal.epithet){ marshal.epithet = 'the man who got ' + (leader ? leader.given : 'them'); }
-    if(leader) killNotable(leader, chance(R,0.5) ? 'gunfight' : 'hanged', day);
+    if(leader) killNotable(leader, chance(R,0.5) ? 'gunfight' : 'hanged', day, {skipNotice:true, threadIds:g.campaignThreadId?[g.campaignThreadId]:[]});
     g.state = 'dead';
     if(g.mesh) g.mesh.visible = false;
     if(g.hideMesh) g.hideMesh.visible = false;
@@ -6176,19 +6305,23 @@ function tickGangShowdown(day){
     W.lastDeathSpot = {x: g.x, z: g.z};
     chron('law', 'THE GANG IS BROKEN. — The marshal’s party came out of the breaks driving ' + gangLine() + '’s horses and carrying its history. ' + money(back) + ' recovered. Bells were rung.', g.x, g.z, 10,
       {kind:'gang.showdown', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        threadIds:g.campaignThreadId?[g.campaignThreadId]:[],
         fame:marshal?[{id:marshal.id, points:45, deed:'Broke ' + g.name + ' and recovered ' + money(back)}]:[],
         scene:{title:'Showdown in the Breaks', setup:marshalName + ' closes on ' + leaderName + ' in a dry wash.',
           outcome:marshalName + ' comes out with the gang’s horses. ' + leaderName + ' will not ride again.'}});
   } else {
-    if(marshal && chance(R, 0.6)) killNotable(marshal, 'gunfight', day);
+    if(marshal && chance(R, 0.6)) killNotable(marshal, 'gunfight', day, {kind:'gang.lawman.died', actors:[marshal.id], threadIds:g.campaignThreadId?[g.campaignThreadId]:[]});
     g.legend = true;
     W.order = Math.max(0, W.order - 10);
     chron('law', 'DISASTER IN THE BREAKS. — The posse was ambushed in a dry wash. ' + gangLine() + ' rides taller than ever, and the county prints its poster larger.', g.x, g.z, 9,
       {kind:'gang.showdown', actors:[marshal&&marshal.id,leader&&leader.id].filter(Boolean),
+        threadIds:g.campaignThreadId?[g.campaignThreadId]:[],
         fame:leader?[{id:leader.id, points:35, deed:'Defeated ' + marshalName + ' in the breaks'}]:[],
         scene:{title:'Showdown in the Breaks', setup:marshalName + ' closes on ' + leaderName + ' in a dry wash.',
           outcome:leaderName + ' springs the ambush. The law’s party does not hold the ground.'}});
   }
+  closeStoryThread(g.campaignThreadId, day, g.state==='dead' ? 'the gang was broken' : 'the law was defeated');
+  g.campaignThreadId = null;
 }
 // the district court sits when it has someone to sit over
 function tickTrials(day){
@@ -6199,23 +6332,34 @@ function tickTrials(day){
     if(day < tr.day) continue;
     W.trials.splice(i, 1);
     const n = notable(tr.id);
-    if(!n || !n.alive || !n.jailed) continue;
+    if(!n || !n.alive || !n.jailed){ closeStoryThread(tr.threadId, day, 'the case was abated'); continue; }
     const s = W.settlements[tr.si] || W.settlements[0];
+    const judge = officialOf('judge');
+    const actors = [n.id,judge&&judge.id].filter(Boolean);
     const conv = clamp(0.35 + W.order*0.005 + (s.hasJail ? 0.08 : 0), 0.2, 0.9);
     if(chance(R, conv)){
       if(chance(R, 0.55)){
-        killNotable(n, 'hanged', day);
+        n.jailed = false;
+        killNotable(n, 'hanged', day, {skipNotice:true});
         W.order = Math.min(100, W.order + 6);
-        chron('law', 'THE COURT IS SATISFIED. — ' + nName(n) + ' was tried, convicted, and hanged at ' + s.name + '. The proceedings were brief and the crowd was large.', s.x, s.z, 8);
+        chron('law', 'THE COURT IS SATISFIED. — ' + nName(n) + ' was tried, convicted, and hanged at ' + s.name + '. The proceedings were brief and the crowd was large.', s.x, s.z, 8,
+          {kind:'trial.hanged', actors, threadIds:[tr.threadId]});
+        closeStoryThread(tr.threadId, day, 'convicted and hanged');
       } else {
+        n.jailed = false; n.imprisoned = true;
         W.order = Math.min(100, W.order + 3);
-        chron('law', 'TWENTY YEARS. — ' + nName(n) + ' goes to the territorial prison, protesting his innocence to a wagon that has heard it before.', s.x, s.z, 6);
+        chron('law', 'TWENTY YEARS. — ' + nName(n) + ' goes to the territorial prison, protesting his innocence to a wagon that has heard it before.', s.x, s.z, 6,
+          {kind:'trial.imprisoned', actors, threadIds:[tr.threadId]});
+        closeStoryThread(tr.threadId, day, 'sentenced to prison');
       }
     } else {
-      n.jailed = false;
+      n.jailed = false; n.imprisoned = false;
+      n.role = 'outlaw'; setAmbition(n, true);
       s.unrest = Math.min(100, s.unrest + 6);
       W.order = Math.max(0, W.order - 5);
-      chron('law', 'OUT THROUGH THE ROOF. — ' + nName(n) + ' did not wait for the verdict. The jailer has resigned; the county is printing new posters.', s.x, s.z, 8);
+      chron('law', 'OUT THROUGH THE ROOF. — ' + nName(n) + ' did not wait for the verdict. The jailer has resigned; the county is printing new posters.', s.x, s.z, 8,
+        {kind:'trial.escaped', actors, threadIds:[tr.threadId]});
+      closeStoryThread(tr.threadId, day, 'escaped before the verdict');
     }
   }
 }
@@ -7122,18 +7266,137 @@ function directorFrame(nowMs, dt){
     }
   }
 }
-// the ledgers (charts)
+// the Gazette's News / Stories / Ledgers views
+const GZ = {mode:'news', personId:null, openThread:null, projection:null, seenRevision:-1, lastRenderMs:0};
 let chartsOn = false, lastGraphDay = -99;
-function setCharts(on){
-  chartsOn = !!on;
-  document.getElementById('graphsBox').style.display = chartsOn ? 'block' : 'none';
-  document.getElementById('gzScroll').style.display = chartsOn ? 'none' : 'block';
-  document.getElementById('btnCharts').textContent = chartsOn ? 'The News' : 'Ledgers';
-  if(chartsOn) drawGraphs();
+function buildStoryProjection(){
+  if(GZ.projection && GZ.seenRevision === W.story.revision) return GZ.projection;
+  const threads = new Map(), people = new Map();
+  W.story.threads.forEach(t => threads.set(t.id, {thread:t, events:[], actorIds:new Set(), lastDay:t.startDay}));
+  W.chron.forEach(e => {
+    (e.threadIds||[]).forEach(id => {
+      let rec = threads.get(id);
+      if(!rec){ const t = storyThread(id); if(!t) return; rec = {thread:t,events:[],actorIds:new Set(),lastDay:t.startDay}; threads.set(id,rec); }
+      rec.events.push(e); rec.lastDay = e.day;
+      e.actors.forEach(id2 => rec.actorIds.add(id2));
+    });
+    e.actors.forEach(id => {
+      let rec = people.get(id);
+      if(!rec){ rec = {id,events:[],lastDay:e.day}; people.set(id,rec); }
+      rec.events.push(e); rec.lastDay = e.day;
+    });
+  });
+  const personList = [...people.values()].filter(r => notable(r.id)).sort((a,b) => {
+    const pa = isPrincipal(notable(a.id)) ? 1 : 0, pb = isPrincipal(notable(b.id)) ? 1 : 0;
+    return pb-pa || b.lastDay-a.lastDay || a.id-b.id;
+  });
+  GZ.projection = {threads:[...threads.values()].filter(r=>r.events.length), people, personList};
+  GZ.seenRevision = W.story.revision;
+  return GZ.projection;
 }
+function storyRange(a, b){ return dateStr(a) + (b !== null && Math.floor(b)!==Math.floor(a) ? ' – ' + dateStr(b) : ''); }
+function storyExcerpt(text){ return text.replace(/<[^>]*>/g,'').replace(/^([A-Z ]+\.) — /,'').slice(0,150); }
+function storyFilterHtml(proj){
+  let html = '<div class="storyFilter"><label for="storyPerson">Filter by character</label><select id="storyPerson"><option value="">All characters</option>';
+  proj.personList.forEach(r => {
+    const n = notable(r.id);
+    html += '<option value="' + r.id + '"' + (GZ.personId===r.id?' selected':'') + '>' + nName(n) + (n.alive?'':' (deceased)') + '</option>';
+  });
+  return html + '</select></div>';
+}
+function storyCardHtml(rec){
+  const t = rec.thread, latest = rec.events[rec.events.length-1];
+  const names = [...rec.actorIds].map(notable).filter(Boolean).slice(0,3).map(nName).join(' · ');
+  return '<div class="storyCard ' + (t.status==='active'?'active':'') + '" data-thread-id="' + t.id + '">' +
+    '<div class="storyType">' + t.type + ' · ' + (t.status==='active'?'active':'concluded') + '</div>' +
+    '<div class="storyTitle">' + t.title + '</div><div class="storyMeta">' + storyRange(t.startDay,t.endDay) + ' · ' + rec.events.length + ' report' + (rec.events.length===1?'':'s') +
+    (names?' · '+names:'') + '</div><div class="storyLatest">' + storyExcerpt(latest.text) + '</div></div>';
+}
+function personCardHtml(rec){
+  const n = notable(rec.id), latest = rec.events[rec.events.length-1];
+  return '<div class="storyCard" data-person-thread="' + rec.id + '"><div class="storyType">Life in print' + (isLegend(n)?' · legend':'') + '</div>' +
+    '<div class="storyTitle">' + nName(n) + '</div><div class="storyMeta">' + roleOf(n) + ' · ' + rec.events.length + ' report' + (rec.events.length===1?'':'s') + ' · last seen ' + dateStr(rec.lastDay) +
+    '</div><div class="storyLatest">' + storyExcerpt(latest.text) + '</div></div>';
+}
+function renderStories(){
+  if(!W || !W.story) return;
+  const host = document.getElementById('gzStories'), proj = buildStoryProjection();
+  let html = storyFilterHtml(proj);
+  if(GZ.openThread){
+    let events = [], title = '', meta = '';
+    if(GZ.openThread.kind === 'person'){
+      const rec = proj.people.get(GZ.openThread.id), n = notable(GZ.openThread.id);
+      if(rec && n){ events = rec.events; title = 'The Life of ' + nName(n); meta = roleOf(n) + ' · ' + rec.events.length + ' report' + (rec.events.length===1?'':'s'); }
+    } else {
+      const rec = proj.threads.find(r => r.thread.id === GZ.openThread.id);
+      if(rec){
+        events = rec.events; title = rec.thread.title;
+        meta = storyRange(rec.thread.startDay,rec.thread.endDay) + ' · ' + rec.events.length + ' report' + (rec.events.length===1?'':'s') + (rec.thread.outcome?' · '+rec.thread.outcome:'');
+      }
+    }
+    if(GZ.personId) events = events.filter(e => e.actors.includes(GZ.personId));
+    meta = meta.replace(/ · \d+ reports?/, ' · ' + events.length + ' report' + (events.length===1?'':'s'));
+    html += '<button class="storyBack" data-story-back>← All stories</button><div class="storyHead"><h3>' + title + '</h3><div class="storyMeta">' + meta + '</div></div><div class="storyTimeline"></div>';
+    host.innerHTML = html;
+    const timeline = host.querySelector('.storyTimeline');
+    events.forEach(e => timeline.appendChild(createChronEventNode(e, true)));
+    if(!events.length) timeline.innerHTML = '<div class="storyEmpty">No reports match this character.</div>';
+  } else {
+    let major = proj.threads.filter(r => !GZ.personId || r.events.some(e => e.actors.includes(GZ.personId)));
+    major.sort((a,b) => (b.thread.status==='active')-(a.thread.status==='active') || b.lastDay-a.lastDay);
+    const active = major.filter(r=>r.thread.status==='active');
+    const closed = major.filter(r=>r.thread.status!=='active').slice(0,30);
+    const people = GZ.personId ? [proj.people.get(GZ.personId)].filter(Boolean) : proj.personList.slice(0,30);
+    if(active.length) html += '<div class="storySect">Stories Still Unfolding</div>' + active.map(storyCardHtml).join('');
+    if(closed.length) html += '<div class="storySect">Stories in the Archive</div>' + closed.map(storyCardHtml).join('');
+    if(people.length) html += '<div class="storySect">Lives in Print</div>' + people.map(personCardHtml).join('');
+    if(!active.length && !closed.length && !people.length) html += '<div class="storyEmpty">The territory has not yet supplied a story with names attached.</div>';
+    host.innerHTML = html;
+  }
+  const select = host.querySelector('#storyPerson');
+  if(select) select.addEventListener('change', ()=>{ GZ.personId = select.value ? +select.value : null; renderStories(); });
+  host.querySelectorAll('[data-thread-id]').forEach(el => el.addEventListener('click', ()=> openStoryThread(el.dataset.threadId)));
+  host.querySelectorAll('[data-person-thread]').forEach(el => el.addEventListener('click', ()=> openPersonStory(+el.dataset.personThread)));
+  const back = host.querySelector('[data-story-back]');
+  if(back) back.addEventListener('click', ()=>{ GZ.openThread = null; renderStories(); });
+  GZ.lastRenderMs = performance.now();
+}
+function openStoryThread(id){ GZ.openThread = {kind:'thread',id}; setGazetteMode('stories'); }
+function openPersonStory(id){
+  if(!notable(id)) return;
+  GZ.personId = id; GZ.openThread = {kind:'person',id};
+  if(watchMode) setWatch(false);
+  setGazetteOpen(true); setGazetteMode('stories'); hideInspector();
+}
+function setGazetteOpen(on){
+  document.body.classList.toggle('gzOpen', !!on);
+  if(on && chartsOn) requestAnimationFrame(drawGraphs);
+}
+function setGazetteMode(mode){
+  GZ.mode = mode;
+  chartsOn = mode === 'ledgers';
+  document.getElementById('gzScroll').style.display = mode==='news' ? 'block' : 'none';
+  document.getElementById('gzStories').style.display = mode==='stories' ? 'block' : 'none';
+  document.getElementById('graphsBox').style.display = mode==='ledgers' ? 'block' : 'none';
+  document.getElementById('gzChips').style.display = mode==='news' ? 'flex' : 'none';
+  document.querySelectorAll('#gzModes button').forEach(b => b.classList.toggle('on', b.dataset.gzMode===mode));
+  if(mode==='stories') renderStories();
+  if(mode==='ledgers') drawGraphs();
+}
+function setCharts(on){ setGazetteMode(on ? 'ledgers' : 'news'); }
+function resetGazetteView(){
+  GZ.personId = null; GZ.openThread = null; GZ.projection = null; GZ.seenRevision = -1; GZ.lastRenderMs = 0;
+  setGazetteOpen(false); setGazetteMode('news');
+}
+function refreshStories(nowMs){
+  if(GZ.mode !== 'stories' || GZ.seenRevision === W.story.revision || nowMs-GZ.lastRenderMs < 500) return;
+  renderStories();
+}
+// the ledgers (charts)
 function drawGraphs(){
   const cv = document.getElementById('graphsCv');
   const box = document.getElementById('graphsBox');
+  if(!box.clientWidth || !box.clientHeight) return;
   const dpr = Math.min(devicePixelRatio||1, 2);
   cv.width = box.clientWidth * dpr; cv.height = box.clientHeight * dpr;
   const g = cv.getContext('2d');
@@ -7424,6 +7687,7 @@ function initInput(){
     else if(k==='g'){ setDirector(!directorOn); }
     else if(k==='escape'){
       if(SCN.active){ finishStoryScene(true); return; }
+      if(document.body.classList.contains('gzOpen')){ setGazetteOpen(false); return; }
       hideInspector(); CAM.follow = null;
       if(W && W.pendingAct){ W.pendingAct = null; document.body.classList.remove('aiming'); }
       if(watchMode) setWatch(false);
@@ -7673,6 +7937,8 @@ function initUI(){
     clearTimeout(btn._t);
     btn._t = setTimeout(()=>{ btn.classList.remove('copied'); btn.title = 'Copy a link to this world'; }, 1400);
   });
+  document.getElementById('gazetteBtn').addEventListener('click', ()=> setGazetteOpen(true));
+  document.getElementById('gzClose').addEventListener('click', ()=> setGazetteOpen(false));
   document.getElementById('btnLabels').addEventListener('click', ()=> labelsOn = !labelsOn);
   document.getElementById('btnWatch').addEventListener('click', ()=> setWatch(!watchMode));
   document.getElementById('btnDirector').addEventListener('click', ()=> setDirector(!directorOn));
@@ -7688,14 +7954,16 @@ function initUI(){
       document.getElementById('gzScroll').dataset.f = b.dataset.f;
     });
   });
+  document.querySelectorAll('#gzModes button').forEach(b => b.addEventListener('click', ()=> setGazetteMode(b.dataset.gzMode)));
   document.getElementById('btnExport').addEventListener('click', ()=>{ if(W && W.chron) exportChronicle(); });
-  document.getElementById('btnCharts').addEventListener('click', ()=> setCharts(!chartsOn));
   buildRatesPanel();
   buildActsPanel();
   document.querySelectorAll('#ovRow button').forEach(b => {
     b.addEventListener('click', ()=> setOverlay(W.overlayMode === b.dataset.ov ? null : b.dataset.ov));
   });
   document.getElementById('inspBody').addEventListener('click', e => {
+    const story = e.target.closest('[data-read-story]');
+    if(story){ openPersonStory(+story.dataset.readStory); return; }
     const t = e.target.closest('.nlink');
     if(t && t.dataset.nid){
       const n = notable(+t.dataset.nid);
@@ -7814,6 +8082,9 @@ async function forgeWorld(seed){
     let p0 = 0; W.settlements.forEach(s => p0 += s.pop);
     W.terrPop = p0; W.popAtStart = p0;
     chron('year', T.year(YEAR0 + Math.floor(W.clock.day/360)));
+    const firstGov = notable(W.gov);
+    chron('era', 'THE GOVERNORSHIP OF ' + nName(firstGov).toUpperCase() + ', BEGUN ' + YEAR0 + '.', undefined, undefined, 0,
+      {kind:'governor.era', actors:[firstGov.id], threadIds:[W.pol.govThreadId]});
     chron('trade', T.opening(), W.settlements[0].x, W.settlements[0].z);
     const cap = W.settlements[0];
     CAM.focus.set(cap.x, 0, cap.z); CAM.focusT.copy(CAM.focus);
@@ -7888,6 +8159,7 @@ function tick(dt, nowMs, present){
     directorFrame(nowMs, dt);
   }
   refreshGraphs();
+  refreshStories(nowMs);
   if(W.riverDirty && nowMs - (W.lastRiverMs||0) > 1500){
     W.riverDirty = false;
     W.lastRiverMs = nowMs;
@@ -7995,6 +8267,7 @@ window.GAZETTE = {
     return livingNotables().filter(n=>n.role).map(n => ({role:n.role, name:nName(n), age:Math.round(n.age), fame:n.fame||0, legend:isLegend(n)}));
   },
   legends(){ return W.notables.filter(isLegend).map(n => ({name:nName(n), role:roleOf(n), fame:n.fame, deeds:n.deeds.map(d=>d.text)})); },
+  stories(){ const p=buildStoryProjection(); return p.threads.map(r=>({id:r.thread.id,type:r.thread.type,title:r.thread.title,status:r.thread.status,outcome:r.thread.outcome,reports:r.events.length,actors:[...r.actorIds]})); },
   scene(){ return SCN.active ? {kind:SCN.active.event.kind, phase:SCN.active.outcomeShown?'outcome':'setup'} : SCN.queue ? {kind:SCN.queue.kind, phase:'queued'} : null; },
   rail(){
     if(!W.rail) return null;

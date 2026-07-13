@@ -130,7 +130,9 @@ A scrolling newsprint panel printing dated entries in frontier-editor voice via 
 - Every entry is clickable → the camera flies to the spot (or to the ruin, boot hill, or ghost town that remains).
 - Character events carry actor ids. An **In This Story** line opens those people directly, while their inspectors retain ambitions, signatures, renown, and the latest five deeds.
 - Era headers divide the scroll: "THE GOVERNORSHIP OF ABEL CRANE, BEGUN 1871."
-- Filter chips (Law / Frontier / Trade / Fates). Export saves the full archive as .txt — a shareable artifact of the run.
+- The panel has three modes: **News / Stories / Ledgers**. News retains the Law / Frontier / Trade / Fates filters. Stories groups the archive into active and concluded governorships, disputed elections, range wars, gang campaigns, and trials, plus a complete synthetic "Life in Print" timeline for every character who has appeared in actor-tagged news.
+- Stories can be filtered by any story-active character, living or dead. Thread cards show status, date span, participants, report count, and the latest headline; opening one renders its complete timeline from the archive rather than the 150-entry News window.
+- Export saves the full archive as .txt — a shareable artifact of the run.
 - Fully local, no API.
 
 ## 13. The auto-director
@@ -159,11 +161,11 @@ Left drawer, four tabs. Time always in HUD: ⏸ ▶ ▶▶ ▶▶▶ ▶▶▶�
 
 Top strip: date & season glyph · weather icon · governor name + brand chip · bank balance · territory population · time controls. Right: the Gazette. Left: drawer. Everything hides with H.
 
-Inspector (raycast click): buildings (name, type, tier, household, stored goods); settlements (population, prosperity, lawlessness, stores, fortifications, landing/rail flags); notables (brand, age, traits, spouse/heirs, grudges, agenda — outlaws get their wanted poster); posses (strength, morale, supply, leader); wagons/stages/drives/trains (route, cargo, value); the gang (name them — outlaws deserve names — mood, loot, bounty). A compact Outfits panel shows brands, standing bars, and the line of appointment.
+Inspector (raycast click): buildings (name, type, tier, household, stored goods); settlements (population, prosperity, lawlessness, stores, fortifications, landing/rail flags); notables (brand, age, traits, spouse/heirs, grudges, agenda — outlaws get their wanted poster); posses (strength, morale, supply, leader); wagons/stages/drives/trains (route, cargo, value); the gang (name them — outlaws deserve names — mood, loot, bounty). A compact Outfits panel shows brands, standing bars, and the line of appointment. A notable with archived appearances gets **Read full story**, which opens their complete Stories timeline. On narrow screens a Gazette button opens News, Stories, and Ledgers as a full-height sheet.
 
 ## 16. Data model sketch
 
-Plain objects: `World { seed, heightmap, biomes, rivers[], settlements[], trails[], outfits[], notables[], posses[], agents[], strikes[], rail, gang, threats[], clock, treasury, order }` · `Notable { id, name, age, traits[2], outfit, role, spouse, parent, ambition, signature, fame, deeds[≤5], legendAt }` · `Settlement { name, pos, pop, prosperity, lawlessness, stores{7}, fort, buildings[], owner, landing, rail, ghost, infected{S,I,R} }` · `Outfit { name, brand, seat, head, standing, might, wealth, herd, grudges{} }` · `Rail { chartered, line[], builtM, depots[], trains[], bypassed[] }` · `Event { id, day, class, priority, pos, kind, actors[], text, scene? }` → feeds Gazette, character memory, Director, and optional render-only presentation. Systems are pure-ish functions over World in tick order; one rand(stream) gateway for all stochastic draws.
+Plain objects: `World { seed, heightmap, biomes, rivers[], settlements[], trails[], outfits[], notables[], posses[], agents[], strikes[], rail, gang, threats[], story, clock, treasury, order }` · `Notable { id, name, age, traits[2], outfit, role, spouse, parent, ambition, signature, fame, deeds[≤5], legendAt }` · `StoryThread { id, type, title, startDay, endDay, status, parentId, outcome }` · `Settlement { name, pos, pop, prosperity, lawlessness, stores{7}, fort, buildings[], owner, landing, rail, ghost, infected{S,I,R} }` · `Outfit { name, brand, seat, head, standing, might, wealth, herd, grudges{} }` · `Rail { chartered, line[], builtM, depots[], trains[], bypassed[] }` · `Event { id, day, class, priority, pos, kind, actors[], threadIds[], text, scene? }` → feeds Gazette, character memory, Stories projection, Director, and optional render-only presentation. Person threads are projections over actor ids; events are never duplicated. Systems are pure-ish functions over World in tick order; one rand(stream) gateway for all stochastic draws.
 
 ## 17. Explicit non-goals
 
@@ -181,6 +183,6 @@ No per-citizen simulation beyond bubble ambience. No Native American representat
 
 ## 19. Acceptance: the five-minute test
 
-Defaults, Tall Tales Low, speed ▶▶▶, no input. Within 5 minutes a viewer sees: a season change; ≥8 Gazette entries including ≥1 named-character event; ≥1 visible incident (fire, holdup, twister, omen, festival, drive) that the director covers; and at least one block visibly grow. Within 30 minutes: an election crisis or a range war. After 200 unattended sim-years: population, bank, and outfit count in sane bounds, the railroad long since woven in, at least one ghost town standing — and the territory still producing story.
+Defaults, Tall Tales Low, speed ▶▶▶, no input. Within 5 minutes a viewer sees: a season change; ≥8 Gazette entries including ≥1 named-character event; ≥1 visible incident (fire, holdup, twister, omen, festival, drive) that the director covers; and at least one block visibly grow. Within 30 minutes: an election crisis or a range war. Every explicit Stories thread closes on its terminal outcome, linked arcs retain their parent, and character filtering never changes history. After 200 unattended sim-years: population, bank, and outfit count in sane bounds, the railroad long since woven in, at least one ghost town standing, Stories opens without rendering the whole archive at once — and the territory still produces story.
 
 If the five-minute test passes, the thing is fascinating to watch. Everything above serves that sentence.
