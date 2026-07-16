@@ -133,10 +133,10 @@ body.aiming #app canvas{ cursor:crosshair; }
   color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
 #shareBtn:hover{ opacity:1; color:var(--rust); }
 #shareBtn.copied{ opacity:1; color:var(--rust); }
-#settingsBtn{ display:flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
+#settingsBtn{ display:flex; align-items:center; justify-content:center; width:40px; height:40px; padding:0;
   background:transparent; border:0; color:var(--ink); opacity:0.9; cursor:pointer; transition:color 0.15s, opacity 0.15s; }
 #settingsBtn:hover, #settingsBtn.on{ opacity:1; color:var(--rust); }
-#settingsBtn svg{ width:20px; height:20px; }
+#settingsBtn svg{ display:block; width:20px; height:20px; flex:0 0 auto; }
 #gazetteBtn{ display:none; align-items:center; padding:0; background:transparent; border:0; color:var(--ink); cursor:pointer; font-family:var(--disp); font-size:17px; }
 #gzClose{ display:none; position:absolute; top:5px; right:7px; z-index:2; width:32px; height:32px; border:0; background:transparent; color:var(--ink2); cursor:pointer; }
 #hudR{ padding-right:104px; }
@@ -241,6 +241,10 @@ body.aiming #app canvas{ cursor:crosshair; }
 .settingRange input{ width:100%; accent-color:var(--rust); height:17px; }
 .settingPresets{ display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:4px; }
 @media (max-width:640px){
+  #hud{ display:block; min-height:78px; padding:6px 8px; }
+  #hudL{ width:100%; padding-top:36px; align-items:flex-start; }
+  #hudC, #hudR{ display:none !important; }
+  #topActions{ top:6px; right:8px; transform:none; gap:8px; }
   #settingsPanel{ top:60px; left:10px; right:10px; width:auto; }
 }
 
@@ -333,7 +337,7 @@ body.watch #watchDate, body.watch #camFrame{ display:block; }
   <div class="col" id="hudL">
     <div class="hudline"><span id="seasonGlyph">☀</span><b id="dateTxt">—</b><span id="weatherIco"></span></div>
     <div id="speeds">
-      <button data-s="0" title="Pause (space)">⏸</button><button data-s="1" title="Cinematic crawl — a day every 200 seconds (1)">·</button><button data-s="2" class="on" title="One day per second (2)">▶</button>
+      <button data-s="0" title="Pause (space)">⏸</button><button data-s="1" class="on" title="Cinematic crawl — a day every 200 seconds (1)">Crawl</button><button data-s="2" title="One day per second (2)">▶</button>
       <button data-s="3" title="Five days per second (3)">▶▶</button><button data-s="4" title="Thirty days per second (4)">▶▶▶</button><button data-s="5" title="Full gallop — 120 days per second (5)">▶▶▶▶</button>
     </div>
   </div>
@@ -2290,6 +2294,9 @@ const ARCH_CACHE = new Map();
 
 function visualWeather(){
   return viewSettings.weather === 'auto' ? (W && W.weather ? W.weather.state : 'clear') : viewSettings.weather;
+}
+function visualTod(){
+  return viewSettings.todMode === 'hold' ? viewSettings.tod : renderTod;
 }
 
 function initRenderer(){
@@ -7811,6 +7818,7 @@ function seasonWeights(day){
 const _sunDir = new THREE.Vector3(), _moonDir = new THREE.Vector3(), _lightDir = new THREE.Vector3();
 let shadowsOn = true;
 function updateSkyAndLight(nowSec){
+  const tod = visualTod();
   const raw = seasonWeights(W.clock.day);
   if(!W.sv){ W.sv = raw.slice(); W.svLast = nowSec; }
   const kS = 1 - Math.exp(-Math.max(0, nowSec - (W.svLast||nowSec))/5);
@@ -7824,13 +7832,13 @@ function updateSkyAndLight(nowSec){
   const rise = lerp(0.300, 0.215, (maxElev-0.48)/(1.15-0.48));
   const set = 1 - rise;
   let sunElev, prog, isDay;
-  if(renderTod >= rise && renderTod <= set){
-    prog = (renderTod-rise)/(set-rise);
+  if(tod >= rise && tod <= set){
+    prog = (tod-rise)/(set-rise);
     sunElev = Math.sin(Math.PI*prog)*maxElev;
     isDay = true;
   } else {
     const nightLen = 1-set+rise;
-    prog = renderTod > set ? (renderTod-set)/nightLen : (renderTod+1-set)/nightLen;
+    prog = tod > set ? (tod-set)/nightLen : (tod+1-set)/nightLen;
     sunElev = -Math.sin(Math.PI*prog)*0.55;
     isDay = false;
   }
@@ -7841,7 +7849,7 @@ function updateSkyAndLight(nowSec){
   _moonDir.set(Math.cos(mEl)*Math.cos(mAz), Math.sin(mEl), Math.cos(mEl)*Math.sin(mAz));
   const night = clamp01(-sunElev/0.10);
   SH.uNightG.value = night; WATERU.uNight.value = night;
-  const K = lerpKeys(renderTod);
+  const K = lerpKeys(tod);
   if(isDay){
     const le = Math.max(sunElev, 0.10);
     _lightDir.set(Math.cos(le)*Math.cos(az), Math.sin(le), Math.cos(le)*Math.sin(az));
@@ -8000,7 +8008,7 @@ function setSpeed(i, source){
   document.querySelectorAll('#speeds button').forEach(b => b.classList.toggle('on', +b.dataset.s === W.clock.speed));
 }
 function togglePause(){
-  if(W.clock.speed === 0) setSpeed(W._lastSpeed || 2);
+  if(W.clock.speed === 0) setSpeed(W._lastSpeed || 1);
   else { W._lastSpeed = W.clock.speed; setSpeed(0); }
 }
 let uiHidden = false;
@@ -8168,7 +8176,7 @@ async function forgeWorld(seed){
     W = {
       seed, seedNum: xmur3(seed)(),
       rng: { gen: makeStream(seed+':gen'), det: makeStream(seed+':det'), amb: makeStream(seed+':amb') },
-      clock: { day: 100.4, speed: 2 },
+      clock: { day: 100.4, speed: 1 },
       labels: [], chunks: [], wheelMeshes: [], fanMeshes: [], mills: [], stations: [], rivers: [], lakes: [], bridges: [], roads: []
     };
     W.noise = makePerlin(W.rng.gen);
@@ -8234,7 +8242,7 @@ async function forgeWorld(seed){
     CAM.t = 0.97; CAM.tT = 0.66; CAM.intro = true;
     CAM.lastInput = performance.now();
     resetViewSettings();
-    setSpeed(2);
+    setSpeed(1);
     lastDateStr = '';
     CAM.follow = null;
     hideInspector();
@@ -8391,9 +8399,9 @@ window.GAZETTE = {
   pitch(v){ CAM.pitchOffT = v; CAM.pitchOff = v; },
   cam(){ return { x: +CAM.focusT.x.toFixed(1), z: +CAM.focusT.z.toFixed(1), yaw: +CAM.yaw.toFixed(3), radius: Math.round(CAM.radius) }; },
   tod(f){
-    if(f === undefined) return {mode:viewSettings.todMode, value:renderTod};
+    if(f === undefined) return {mode:viewSettings.todMode, value:visualTod()};
     setTodView('hold', ((f%1)+1)%1);
-    return renderTod;
+    return visualTod();
   },
   weather(state){
     if(state === undefined) return {mode:viewSettings.weather, state:visualWeather()};
